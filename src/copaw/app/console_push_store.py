@@ -6,6 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 
 from ..store.redis_store import ConsolePushStore as _ConsolePushStore
 from ..constant import (
@@ -14,6 +15,7 @@ from ..constant import (
     REDIS_DB,
     REDIS_PASSWORD,
     REDIS_SSL,
+    REDIS_MODE,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,14 +28,30 @@ _MAX_AGE_SECONDS = 60
 def _get_store() -> _ConsolePushStore:
     global _redis_client, _store
     if _store is None:
-        redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-        if REDIS_SSL:
-            redis_url = redis_url.replace("redis://", "rediss://")
-        _redis_client = Redis.from_url(
-            redis_url,
-            password=REDIS_PASSWORD or None,
-            decode_responses=False,
-        )
+        if REDIS_MODE == "cluster":
+            from ..constant import get_redis_seeds
+
+            seeds = get_redis_seeds()
+            startup_nodes = [
+                {"host": h, "port": int(p)}
+                for h, p in (s.split(":") for s in seeds)
+            ]
+            _redis_client = RedisCluster(
+                startup_nodes=startup_nodes,
+                password=REDIS_PASSWORD or None,
+                ssl=REDIS_SSL,
+                decode_responses=False,
+                skip_full_coverage_check=True,
+            )
+        else:
+            redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+            if REDIS_SSL:
+                redis_url = redis_url.replace("redis://", "rediss://")
+            _redis_client = Redis.from_url(
+                redis_url,
+                password=REDIS_PASSWORD or None,
+                decode_responses=False,
+            )
         _store = _ConsolePushStore(_redis_client, ttl=_MAX_AGE_SECONDS)
     return _store
 

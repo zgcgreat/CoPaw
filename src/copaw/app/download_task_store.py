@@ -11,6 +11,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 
 from .download_task_store_models import DownloadTask, DownloadTaskStatus
 from ..constant import (
@@ -19,6 +20,7 @@ from ..constant import (
     REDIS_DB,
     REDIS_PASSWORD,
     REDIS_SSL,
+    REDIS_MODE,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,18 +29,34 @@ _redis_client: Optional[Redis] = None
 _TASK_TTL = 3600  # 1 hour default TTL for tasks
 
 
-def _get_redis_client() -> Redis:
+def _get_redis_client() -> Redis | RedisCluster:
     """Get or create the Redis client singleton."""
     global _redis_client
     if _redis_client is None:
-        redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-        if REDIS_SSL:
-            redis_url = redis_url.replace("redis://", "rediss://")
-        _redis_client = Redis.from_url(
-            redis_url,
-            password=REDIS_PASSWORD or None,
-            decode_responses=False,
-        )
+        if REDIS_MODE == "cluster":
+            from ..constant import get_redis_seeds
+
+            seeds = get_redis_seeds()
+            startup_nodes = [
+                {"host": h, "port": int(p)}
+                for h, p in (s.split(":") for s in seeds)
+            ]
+            _redis_client = RedisCluster(
+                startup_nodes=startup_nodes,
+                password=REDIS_PASSWORD or None,
+                ssl=REDIS_SSL,
+                decode_responses=False,
+                skip_full_coverage_check=True,
+            )
+        else:
+            redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+            if REDIS_SSL:
+                redis_url = redis_url.replace("redis://", "rediss://")
+            _redis_client = Redis.from_url(
+                redis_url,
+                password=REDIS_PASSWORD or None,
+                decode_responses=False,
+            )
     return _redis_client
 
 
@@ -236,7 +254,7 @@ async def clear_completed(backend: Optional[str] = None) -> None:
 
 
 async def _delete_task(
-    client: Redis,
+    client: Redis | RedisCluster,
     task_id: str,
     backend: Optional[str],
 ) -> None:

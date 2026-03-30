@@ -150,9 +150,19 @@ class ClusterNodeDiscovery:
         try:
             # Execute CLUSTER NODES command
             result = await client.execute_command("CLUSTER NODES")
-            cluster_info = (
-                result.decode() if isinstance(result, bytes) else result
-            )
+
+            # Handle different response types from Redis client
+            if isinstance(result, bytes):
+                cluster_info = result.decode()
+            elif isinstance(result, dict):
+                # Some Redis client versions return parsed dict
+                # Log warning and return empty to trigger retry/fallback
+                logger.warning(
+                    f"Unexpected dict response from CLUSTER NODES: {result}"
+                )
+                return []
+            else:
+                cluster_info = str(result)
 
             masters = []
             for line in cluster_info.strip().split("\n"):
