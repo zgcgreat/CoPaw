@@ -310,6 +310,27 @@ class RedisConfig(BaseModel):
     ssl: bool = False
 
 
+class RedisClusterConfig(BaseModel):
+    """Redis Cluster configuration for multi-instance deployment with Redlock."""
+
+    mode: Literal["single", "cluster"] = "single"
+    seeds: List[str] = Field(default_factory=lambda: ["localhost:6379"])
+    discovery_interval: int = 60
+    discovery_max_retries: int = 3
+    discovery_retry_delay: float = 5.0
+    connect_timeout: int = 2000
+    min_cluster_size: int = 3
+    password: str = ""
+    ssl: bool = False
+
+    # Redlock settings
+    lock_single_timeout_ms: int = 50
+    lock_retry_count: int = 3
+    lock_retry_delay_ms: int = 100
+    lock_drift_factor: float = 0.01
+    lock_discovery_max_age: float = 5.0
+
+
 class CronLockConfig(BaseModel):
     """Distributed cron lock configuration for multi-instance deployments."""
 

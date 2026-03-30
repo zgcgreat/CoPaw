@@ -289,6 +289,46 @@ REDIS_SSL = os.environ.get("COPAW_REDIS_SSL", "false").lower() in (
 )
 
 # ============================================================================
+# Redis Cluster configuration (for multi-instance with Redlock)
+# ============================================================================
+REDIS_MODE = os.environ.get("COPAW_REDIS_MODE", "single")  # "single" or "cluster"
+REDIS_SEEDS = os.environ.get("COPAW_REDIS_SEEDS", "localhost:6379")
+REDIS_CLUSTER_DISCOVERY_INTERVAL = int(
+    os.environ.get("COPAW_REDIS_CLUSTER_DISCOVERY_INTERVAL", "60")
+)
+REDIS_DISCOVERY_MAX_RETRIES = int(
+    os.environ.get("COPAW_REDIS_DISCOVERY_MAX_RETRIES", "3")
+)
+REDIS_DISCOVERY_RETRY_DELAY = float(
+    os.environ.get("COPAW_REDIS_DISCOVERY_RETRY_DELAY", "5.0")
+)
+REDIS_CONNECT_TIMEOUT = int(
+    os.environ.get("COPAW_REDIS_CONNECT_TIMEOUT", "2000")
+)
+REDIS_MIN_CLUSTER_SIZE = int(
+    os.environ.get("COPAW_REDIS_MIN_CLUSTER_SIZE", "3")
+)
+
+# ============================================================================
+# Redlock configuration
+# ============================================================================
+REDIS_LOCK_SINGLE_TIMEOUT = int(
+    os.environ.get("COPAW_REDIS_LOCK_SINGLE_TIMEOUT", "50")
+)
+REDIS_LOCK_RETRY_COUNT = int(
+    os.environ.get("COPAW_REDIS_LOCK_RETRY_COUNT", "3")
+)
+REDIS_LOCK_RETRY_DELAY = int(
+    os.environ.get("COPAW_REDIS_LOCK_RETRY_DELAY", "100")
+)
+REDIS_LOCK_DRIFT_FACTOR = float(
+    os.environ.get("COPAW_REDIS_LOCK_DRIFT_FACTOR", "0.01")
+)
+REDIS_LOCK_DISCOVERY_MAX_AGE = float(
+    os.environ.get("COPAW_REDIS_LOCK_DISCOVERY_MAX_AGE", "5.0")
+)
+
+# ============================================================================
 # Cron lock configuration (for multi-instance coordination)
 # ============================================================================
 CRON_LOCK_ENABLED = os.environ.get(
