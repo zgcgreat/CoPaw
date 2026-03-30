@@ -1,8 +1,8 @@
-# CoPaw 多实例容器化部署设计文档 (Redis 集群 + Redlock)
+# CoPaw 多实例容器化部署设计文档 (Redis 集群 + Redlock) v1.3
 
 **日期**: 2026-03-30
-**版本**: v1.2
-**状态**: 已评审
+**版本**: v1.3
+**状态**: 已评审并修复 Critical Issues
 
 ---
 
@@ -162,18 +162,33 @@ TTL = 3600  # 1小时过期
    └─────────┘           └─────────┘           └─────────┘
 ```
 
-### 4.2 锁粒度
+### 4.2 锁粒度与 Key 安全
 
 **用户级锁**：同一用户的任务串行执行，不同用户的任务并行执行。
 
 ```python
 # 锁 Key 格式（使用 Hash Tag 确保同一 slot）
-KEY = f"copaw:cron:user:{{{user_id}}}"
+# Hash Tag: {user_id} 确保同一用户的所有锁在同一个 slot
+
+def _validate_user_id_for_hash_tag(user_id: str) -> str:
+    """验证并清理 user_id，防止 Hash Tag 注入"""
+    # 移除花括号，防止嵌套或格式错误
+    clean_id = user_id.replace("{", "").replace("}", "")
+    if not clean_id:
+        raise ValueError(f"Invalid user_id for hash tag: {user_id}")
+    return clean_id
+
+def get_lock_key(user_id: str) -> str:
+    """生成 Redlock Key"""
+    clean_id = _validate_user_id_for_hash_tag(user_id)
+    return f"copaw:cron:user:{{{clean_id}}}"
 
 # 示例
 "copaw:cron:user:{alice}"  # alice 的所有任务竞争这把锁
 "copaw:cron:user:{bob}"    # bob 的所有任务竞争这把锁
 ```
+
+**注意**：仅 Redlock Key 使用 Hash Tag，临时数据（console_push/download_tasks）不使用。
 
 ### 4.3 锁参数
 
@@ -182,6 +197,10 @@ KEY = f"copaw:cron:user:{{{user_id}}}"
 | `REDIS_MODE` | `cluster` | Redis 模式: `single`/`cluster` | 是 |
 | `REDIS_SEEDS` | - | 种子节点列表，逗号分隔 | 是 |
 | `REDIS_CLUSTER_DISCOVERY_INTERVAL` | 60 (秒) | 节点发现间隔 | 是 |
+| `REDIS_DISCOVERY_MAX_RETRIES` | 3 | 发现失败重试次数 | 是 |
+| `REDIS_DISCOVERY_RETRY_DELAY` | 5 (秒) | 发现重试间隔 | 是 |
+| `REDIS_CONNECT_TIMEOUT` | 2000 (毫秒) | Redis 连接超时 | 是 |
+| `REDIS_MIN_CLUSTER_SIZE` | 3 | 最小集群节点数（安全校验） | 是 |
 | `CRON_LOCK_TTL` | 600 (秒) | 锁超时时间 | 是 |
 | `CRON_LOCK_PREFIX` | `copaw:cron:user:` | 锁 Key 前缀 | 是 |
 | `CRON_LOCK_RENEW_INTERVAL` | 300 (秒) | 锁续期间隔（TTL/2） | 否，固定 TTL/2 |
@@ -190,6 +209,7 @@ KEY = f"copaw:cron:user:{{{user_id}}}"
 | `REDIS_LOCK_RETRY_COUNT` | 3 | 重试次数 | 是 |
 | `REDIS_LOCK_RETRY_DELAY` | 100 (毫秒) | 重试间隔 | 是 |
 | `REDIS_LOCK_DRIFT_FACTOR` | 0.01 (1%) | 时钟漂移因子 | 是 |
+| `REDIS_LOCK_DISCOVERY_MAX_AGE` | 5 (秒) | 节点发现最大有效期 | 是 |
 
 ### 4.4 Redlock 算法实现
 
@@ -202,18 +222,28 @@ class ClusterNodeDiscovery:
 
     策略:
     - 维护种子节点列表 (2-3 个)，用于初始连接
+    - 支持强制刷新（获取锁前调用，防止 split-brain）
     - 定期执行 CLUSTER NODES 获取完整拓扑
     - 缓存主节点列表，节点变更时平滑过渡
-    - 发现失败时回退到缓存列表
+    - 发现失败时回退到缓存列表（带重试）
 
     容错:
     - 种子节点部分不可用时仍可工作
     - 节点扩缩容期间使用旧列表，不影响现有锁
+    - 启动时重试机制，避免级联启动失败
     """
 
-    def __init__(self, seeds: List[str], discovery_interval: int = 60):
+    def __init__(
+        self,
+        seeds: List[str],
+        discovery_interval: int = 60,
+        max_retries: int = 3,
+        retry_delay: float = 5.0
+    ):
         self.seeds = seeds
         self.discovery_interval = discovery_interval
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self._masters: List[Redis] = []
         self._last_discovery: float = 0
 
@@ -224,38 +254,74 @@ class ClusterNodeDiscovery:
             await self._refresh_nodes()
         return self._masters
 
-    async def _refresh_nodes(self):
-        """刷新节点列表"""
-        for seed in self.seeds:
-            try:
-                nodes = await self._discover_from_seed(seed)
-                if nodes:
-                    self._masters = nodes
-                    self._last_discovery = time.time()
-                    return
-            except Exception as e:
-                logger.warning(f"Failed to discover from {seed}: {e}")
+    async def force_refresh(self) -> None:
+        """强制刷新节点发现（获取锁前调用，防止 split-brain）"""
+        await self._refresh_nodes()
 
-        # 全部失败，使用缓存（如果有）
+    async def _refresh_nodes(self):
+        """刷新节点列表（带重试）"""
+        for attempt in range(self.max_retries):
+            for seed in self.seeds:
+                try:
+                    nodes = await self._discover_from_seed(seed)
+                    if nodes:
+                        self._masters = nodes
+                        self._last_discovery = time.time()
+                        return
+                except Exception as e:
+                    logger.warning(
+                        f"Discovery attempt {attempt+1} failed from {seed}: {e}"
+                    )
+
+            if attempt < self.max_retries - 1:
+                await asyncio.sleep(self.retry_delay)
+
+        # 所有重试耗尽
         if not self._masters:
-            raise RedisClusterError("Cannot discover any master nodes")
+            raise RedisClusterError(
+                f"Cannot discover any master nodes after {self.max_retries} attempts"
+            )
+        logger.warning(
+            "Discovery failed, using cached node list (may be stale)"
+        )
+
+    async def _discover_from_seed(self, seed: str) -> List[Redis]:
+        """从种子节点发现主节点"""
+        # 实现略，返回 Redis 主节点列表
+        pass
 ```
 
-#### 4.4.2 Redlock 获取锁
+#### 4.4.2 Redlock 数据结构与获取锁
 
 ```python
+from dataclasses import dataclass
+from typing import List
+from redis.asyncio import Redis
+
+@dataclass
+class LockToken:
+    """Redlock 锁令牌"""
+    resource: str          # 锁资源标识
+    value: str             # 锁唯一值
+    validity: float        # 有效时间（毫秒）
+    nodes: List[Redis]     # 成功获取锁的节点列表
+    quorum: int            # 原始 quorum（获取锁时的多数阈值）
+    discovery_time: float  # 节点发现时间戳（用于检测过期拓扑）
+
+
 class RedlockDistributedLock:
     """
     分布式锁实现（Redlock 算法）
 
     算法步骤:
-    1. 记录开始时间
-    2. 向所有节点顺序尝试获取锁（单节点超时）
+    1. 强制刷新节点发现（防止 split-brain）
+    2. 并行向所有节点尝试获取锁
     3. 计算成功数 >= quorum 且总耗时 < TTL 剩余时间
     4. 成功则返回锁，失败则向所有节点释放
     """
 
     CLOCK_DRIFT_FACTOR = 0.01  # 1% 时钟漂移容差
+    DISCOVERY_MAX_AGE = 5.0    # 节点发现结果最大有效期（秒）
 
     async def acquire(
         self,
@@ -273,20 +339,53 @@ class RedlockDistributedLock:
             LockToken 如果成功，None 如果失败
         """
         lock_value = self._generate_unique_value()
+
+        # CRITICAL: 强制刷新节点发现，防止 split-brain
+        # 确保所有实例看到相同的节点列表
+        await self.node_discovery.force_refresh()
+
         masters = await self.node_discovery.get_masters()
         quorum = len(masters) // 2 + 1
+        discovery_time = time.time()
 
         for retry in range(self.retry_count):
             start_time = time.monotonic()
-            locked_nodes = []
 
-            # 向所有节点尝试获取锁
-            for node in masters:
-                try:
-                    if await self._lock_single(node, resource, lock_value, ttl):
-                        locked_nodes.append(node)
-                except Exception:
-                    continue
+            # 并行向所有节点获取锁（Redlock 算法要求）
+            tasks = [
+                self._lock_single(node, resource, lock_value, ttl)
+                for node in masters
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 收集成功获取锁的节点
+            locked_nodes = []
+            for node, result in zip(masters, results):
+                if isinstance(result, bool) and result:
+                    locked_nodes.append(node)
+
+            # 计算耗时（并行获取，耗时 ≈ 单节点超时）
+            elapsed = (time.monotonic() - start_time) * 1000
+            validity = ttl - elapsed - ttl * self.CLOCK_DRIFT_FACTOR
+
+            # 检查是否满足条件
+            if len(locked_nodes) >= quorum and validity > 0:
+                return LockToken(
+                    resource=resource,
+                    value=lock_value,
+                    validity=validity,
+                    nodes=locked_nodes,
+                    quorum=quorum,              # 存储原始 quorum
+                    discovery_time=discovery_time
+                )
+
+            # 失败，释放所有已获取的锁
+            await self._unlock_all(masters, resource, lock_value)
+
+            if retry < self.retry_count - 1:
+                await asyncio.sleep(self.retry_delay_ms / 1000)
+
+        return None
 
             # 计算耗时
             elapsed = (time.monotonic() - start_time) * 1000
@@ -432,10 +531,11 @@ class RedlockRenewalTask:
                     self._failed_renewals = 0
 
     async def _extend(self) -> bool:
-        """向所有已获取的节点续期"""
+        """向已获取的节点续期"""
+        # CRITICAL: 使用获取锁时的原始 quorum，而非当前 quorum
+        # 这确保在集群扩缩容期间续期仍能正常工作
+        quorum = self.lock_token.quorum
         success_count = 0
-        masters = await self.node_discovery.get_masters()
-        quorum = len(masters) // 2 + 1
 
         # 向原持有锁的节点续期
         for node in self.lock_token.nodes:
@@ -450,11 +550,15 @@ class RedlockRenewalTask:
             except Exception as e:
                 logger.debug(f"Failed to extend lock on node: {e}")
 
-        # Redlock 续期策略：需要多数节点成功
+        # Redlock 续期策略：需要多数节点成功（使用原始 quorum）
         return success_count >= quorum
 
     def is_healthy(self) -> bool:
         return self._failed_renewals < self._max_failed_renewals
+
+    def is_discovery_stale(self) -> bool:
+        """检查节点发现是否过期（防止使用过期的拓扑）"""
+        return (time.time() - self.lock_token.discovery_time) > self.DISCOVERY_MAX_AGE
 ```
 
 ### 4.7 Redlock 使用流程（含续期和防惊群）
@@ -471,7 +575,7 @@ async def _scheduled_callback(self, user_id: str, job_id: str):
         return
 
     # 3. 尝试获取 Redlock
-    lock_key = f"copaw:cron:user:{{{user_id}}}"
+    lock_key = get_lock_key(user_id)  # 使用安全的 Key 生成
     ttl_ms = CRON_LOCK_TTL * 1000
 
     lock_token = await redlock.acquire(lock_key, ttl=ttl_ms)
@@ -725,6 +829,7 @@ env:
 | `src/copaw/lock/redis_lock.py` | Redis 分布式锁抽象层 |
 | `src/copaw/lock/redlock.py` | Redlock 算法实现（Redis 集群） |
 | `src/copaw/lock/cluster_discovery.py` | Redis 集群节点发现器 |
+| `src/copaw/lock/lock_token.py` | LockToken 数据类定义 |
 | `src/copaw/lock/file_lock.py` | NAS 文件锁实现（封装 portalocker） |
 | `src/copaw/lock/__init__.py` | 锁模块导出 |
 | `src/copaw/store/redis_store.py` | Redis 版 console_push/download 存储 |
@@ -752,6 +857,10 @@ env:
 COPAW_REDIS_MODE=cluster                        # single | cluster
 COPAW_REDIS_SEEDS=node1:6379,node2:6379,node3:6379  # 种子节点列表
 COPAW_REDIS_CLUSTER_DISCOVERY_INTERVAL=60       # 节点发现间隔（秒）
+COPAW_REDIS_DISCOVERY_MAX_RETRIES=3             # 发现重试次数
+COPAW_REDIS_DISCOVERY_RETRY_DELAY=5             # 发现重试间隔（秒）
+COPAW_REDIS_CONNECT_TIMEOUT=2000                # 连接超时（毫秒）
+COPAW_REDIS_MIN_CLUSTER_SIZE=3                  # 最小集群节点数（安全校验）
 COPAW_REDIS_PASSWORD=                           # 密码（如需要）
 COPAW_REDIS_SSL=false                           # 是否启用 SSL
 
@@ -762,6 +871,7 @@ COPAW_REDIS_LOCK_SINGLE_TIMEOUT=50              # 单节点获取超时（毫秒
 COPAW_REDIS_LOCK_RETRY_COUNT=3                  # 重试次数
 COPAW_REDIS_LOCK_RETRY_DELAY=100                # 重试间隔（毫秒）
 COPAW_REDIS_LOCK_DRIFT_FACTOR=0.01              # 时钟漂移因子（1%）
+COPAW_REDIS_LOCK_DISCOVERY_MAX_AGE=5            # 节点发现最大有效期（秒）
 
 # 实例标识
 COPAW_INSTANCE_ID=                              # 自动生成（主机名或UUID）
@@ -1081,8 +1191,9 @@ redis = [
 | v1.0 | 2026-03-22 | 初始版本 |
 | v1.1 | 2026-03-22 | 修订版：添加锁续期、文件锁、Redis 存储临时数据、防惊群、健康检查、实例 ID 生成 |
 | v1.2 | 2026-03-30 | **Redis 集群支持**：添加 Redlock 算法、节点自动发现、集群故障检测、Hash Tag Key 设计 |
+| v1.3 | 2026-03-30 | **修复 Critical Issues**：并行锁获取、存储原始 quorum、强制节点发现刷新、Hash Tag 安全验证 |
 
 ---
 
-**文档状态**: 评审中
+**文档状态**: 已评审并修复
 **最后更新**: 2026-03-30
