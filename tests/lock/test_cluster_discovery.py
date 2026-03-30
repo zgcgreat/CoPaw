@@ -119,3 +119,46 @@ class TestClusterNodeDiscovery:
 
         nodes = await discovery.get_masters()
         assert len(nodes) == 1
+
+    @pytest.mark.asyncio
+    async def test_fallback_to_cached_nodes_on_failure(self, discovery, mock_redis):
+        """Test that cached nodes are used when all discovery attempts fail."""
+        # First, populate cache with successful discovery
+        mock_redis.execute_command.return_value = (
+            b"node1 192.168.1.1:6379@16379 master - 0 0 1 connected 0-5460\n"
+        )
+        nodes1 = await discovery.get_masters()
+        assert len(nodes1) == 1
+
+        # Now make all discovery attempts fail (expire cache first)
+        import time
+        discovery._last_discovery = time.time() - 100  # Expire cache
+        mock_redis.execute_command.side_effect = Exception("Connection refused")
+
+        # Should return cached nodes instead of raising error
+        nodes2 = await discovery.get_masters()
+        assert len(nodes2) == 1
+        assert nodes2[0] == nodes1[0]
+
+    @pytest.mark.asyncio
+    async def test_discover_empty_master_list(self, discovery, mock_redis):
+        """Test discovery when cluster has no master nodes."""
+        mock_redis.execute_command.return_value = b""  # No nodes
+
+        nodes = await discovery._discover_from_seed("node1:6379")
+        assert nodes == []
+
+    @pytest.mark.asyncio
+    async def test_aclose_clears_connections(self, discovery, mock_redis):
+        """Test that aclose closes all connections."""
+        # Populate with nodes
+        mock_redis.execute_command.return_value = (
+            b"node1 192.168.1.1:6379@16379 master - 0 0 1 connected 0-5460\n"
+        )
+        await discovery.get_masters()
+
+        # Close should clear connections
+        await discovery.aclose()
+        assert discovery._masters == []
+        assert discovery._last_discovery == 0
+        mock_redis.aclose.assert_called()

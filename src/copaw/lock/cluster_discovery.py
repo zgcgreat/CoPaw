@@ -89,6 +89,13 @@ class ClusterNodeDiscovery:
                 try:
                     nodes = await self._discover_from_seed(seed)
                     if nodes:
+                        # Close old connections before replacing
+                        for old_client in self._masters:
+                            try:
+                                await old_client.aclose()
+                            except Exception as e:
+                                logger.debug(f"Failed to close old connection: {e}")
+
                         self._masters = nodes
                         self._last_discovery = time.time()
                         logger.debug(
@@ -111,6 +118,16 @@ class ClusterNodeDiscovery:
         logger.warning(
             "Discovery failed, using cached node list (may be stale)",
         )
+
+    async def aclose(self) -> None:
+        """Close all Redis connections."""
+        for client in self._masters:
+            try:
+                await client.aclose()
+            except Exception as e:
+                logger.debug(f"Failed to close connection: {e}")
+        self._masters.clear()
+        self._last_discovery = 0
 
     async def _discover_from_seed(self, seed: str) -> List[Redis]:
         """Discover master nodes from a seed node.
