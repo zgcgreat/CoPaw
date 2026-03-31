@@ -103,32 +103,40 @@ def get_current_user_id() -> str | None:
 # ============================================================================
 
 
-def set_request_user_id(user_id: str | None) -> contextvars.Token:
-    """设置请求级用户 ID，返回 token 用于恢复。
+def set_request_user_id(user_id: str | None) -> tuple[contextvars.Token, contextvars.Token, contextvars.Token]:
+    """设置请求级用户 ID，返回 tokens 用于恢复。
 
     Args:
         user_id: 用户标识
 
     Returns:
-        contextvars.Token 用于恢复之前的值
+        三个 contextvars.Token 分别用于恢复 user_id、working_dir、secret_dir
     """
-    token = _request_user_id.set(user_id)
+    token_id = _request_user_id.set(user_id)
     if user_id:
-        _request_working_dir.set(DEFAULT_WORKING_DIR / user_id)
-        _request_secret_dir.set(DEFAULT_SECRET_DIR / user_id)
+        token_wd = _request_working_dir.set(DEFAULT_WORKING_DIR / user_id)
+        token_sd = _request_secret_dir.set(DEFAULT_SECRET_DIR / user_id)
     else:
-        _request_working_dir.set(DEFAULT_WORKING_DIR)
-        _request_secret_dir.set(DEFAULT_SECRET_DIR)
-    return token
+        token_wd = _request_working_dir.set(DEFAULT_WORKING_DIR)
+        token_sd = _request_secret_dir.set(DEFAULT_SECRET_DIR)
+    return token_id, token_wd, token_sd
 
 
-def reset_request_user_id(token: contextvars.Token) -> None:
+def reset_request_user_id(
+    token_id: contextvars.Token,
+    token_wd: contextvars.Token,
+    token_sd: contextvars.Token,
+) -> None:
     """恢复之前的用户 ID 上下文。
 
     Args:
-        token: set_request_user_id 返回的 token
+        token_id: set_request_user_id 返回的 user_id token
+        token_wd: set_request_user_id 返回的 working_dir token
+        token_sd: set_request_user_id 返回的 secret_dir token
     """
-    _request_user_id.reset(token)
+    _request_user_id.reset(token_id)
+    _request_working_dir.reset(token_wd)
+    _request_secret_dir.reset(token_sd)
 
 
 def get_request_user_id() -> str | None:
