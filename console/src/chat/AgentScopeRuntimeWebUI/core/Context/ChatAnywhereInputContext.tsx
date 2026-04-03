@@ -1,6 +1,13 @@
 import { createContext, useContextSelector } from 'use-context-selector';
-import { IAgentScopeRuntimeWebUIInputContext } from '@/chat';
+import { IAgentScopeRuntimeWebUIInputContext, ProcessingState } from '@/chat';
 import { useGetState } from 'ahooks';
+
+const defaultProcessing: ProcessingState = {
+  status: 'idle',
+  startTime: null,
+  tokenCount: 0,
+  toolProgress: null,
+};
 
 export const ChatAnywhereInputContext = createContext<IAgentScopeRuntimeWebUIInputContext>({
   loading: false,
@@ -9,6 +16,8 @@ export const ChatAnywhereInputContext = createContext<IAgentScopeRuntimeWebUIInp
   disabled: false,
   setDisabled: () => { },
   getDisabled: () => false,
+  processing: defaultProcessing,
+  setProcessing: () => { },
 });
 
 export function ChatAnywhereInputContextProvider(props: {
@@ -16,8 +25,22 @@ export function ChatAnywhereInputContextProvider(props: {
 }) {
   const [loading, setLoading, getLoading] = useGetState<boolean | string>(false);
   const [disabled, setDisabled, getDisabled] = useGetState<boolean | string>(false);
+  const [processing, setProcessingState] = useGetState<ProcessingState>(defaultProcessing);
 
-  return <ChatAnywhereInputContext.Provider value={{ loading, setLoading, getLoading, disabled, setDisabled, getDisabled }}>
+  const setProcessing = (state: Partial<ProcessingState>) => {
+    setProcessingState(prev => ({ ...prev, ...state }));
+  };
+
+  return <ChatAnywhereInputContext.Provider value={{
+    loading,
+    setLoading,
+    getLoading,
+    disabled,
+    setDisabled,
+    getDisabled,
+    processing,
+    setProcessing,
+  }}>
     {props.children}
   </ChatAnywhereInputContext.Provider>;
 }

@@ -17,6 +17,7 @@ import ReactDOM from "react-dom";
  */
 export default function useChatController() {
   const setLoading = useContextSelector(ChatAnywhereInputContext, v => v.setLoading);
+  const setProcessing = useContextSelector(ChatAnywhereInputContext, v => v.setProcessing);
   const currentSessionId = useContextSelector(ChatAnywhereSessionsContext, v => v.currentSessionId);
 
   const currentQARef = useRef<{
@@ -39,12 +40,13 @@ export default function useChatController() {
 
     currentQARef.current.response.msgStatus = status;
     setLoading(false);
+    setProcessing({ status: 'idle', startTime: null, tokenCount: 0, toolProgress: null });
     ReactDOM.flushSync(() => {
       messageHandler.updateMessage(currentQARef.current.response);
     });
 
     sessionHandler.syncSessionMessages(messageHandler.getMessages());
-  }, [setLoading, messageHandler, sessionHandler]);
+  }, [setLoading, setProcessing, messageHandler, sessionHandler]);
 
   // API 请求处理
   const { request } = useChatRequest({
@@ -70,6 +72,7 @@ export default function useChatController() {
     // 3. 创建用户请求消息
     messageHandler.createRequestMessage(data);
     setLoading(true);
+    setProcessing({ status: 'waiting', startTime: Date.now(), tokenCount: 0, toolProgress: null });
     await sleep(100);
 
     // 4. 创建助手响应消息
@@ -81,13 +84,14 @@ export default function useChatController() {
 
     await request(historyMessages, data.biz_params);
     // mockRequest(mockdata);
-  }, [messageHandler, sessionHandler, request]);
+  }, [messageHandler, sessionHandler, request, setProcessing]);
 
 
   const handleApproval = useCallback(async ({ input }) => {
     messageHandler.createApprovalMessage(input);
 
     setLoading(true);
+    setProcessing({ status: 'waiting', startTime: Date.now(), tokenCount: 0, toolProgress: null });
     await sleep(100);
 
     messageHandler.createResponseMessage();
@@ -95,7 +99,7 @@ export default function useChatController() {
     await sessionHandler.syncSessionMessages(messageHandler.getMessages());
 
     await request(historyMessages);
-  }, [messageHandler, sessionHandler, request]);
+  }, [messageHandler, sessionHandler, request, setProcessing]);
 
   /**
    * 处理取消
@@ -109,6 +113,7 @@ export default function useChatController() {
    */
   const handleRegenerate = useCallback(async (messageId: string) => {
     setLoading(true);
+    setProcessing({ status: 'waiting', startTime: Date.now(), tokenCount: 0, toolProgress: null });
 
     // 1. 移除旧消息
     messageHandler.removeMessageById(messageId);
@@ -120,7 +125,7 @@ export default function useChatController() {
     // 3. 发起请求
     const historyMessages = messageHandler.getHistoryMessages();
     await request(historyMessages);
-  }, [messageHandler, request]);
+  }, [messageHandler, request, setProcessing]);
 
   // 监听会话切换，重置状态
   useEffect(() => {

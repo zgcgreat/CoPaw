@@ -393,6 +393,60 @@ export interface IAgentScopeRuntimeWebUIActionsOptions {
 }
 
 /**
+ * @description 工具执行进度
+ * @descriptionEn Tool execution progress
+ */
+export interface ToolProgress {
+  /**
+   * @description 总工具调用数
+   * @descriptionEn Total tool calls
+   */
+  total: number;
+  /**
+   * @description 已完成数
+   * @descriptionEn Completed count
+   */
+  completed: number;
+  /**
+   * @description 进行中数
+   * @descriptionEn In progress count
+   */
+  inProgress: number;
+  /**
+   * @description 失败数
+   * @descriptionEn Failed count
+   */
+  failed: number;
+}
+
+/**
+ * @description 处理状态
+ * @descriptionEn Processing state
+ */
+export interface ProcessingState {
+  /**
+   * @description 状态：idle | waiting | processing
+   * @descriptionEn Status: idle | waiting | processing
+   */
+  status: 'idle' | 'waiting' | 'processing';
+  /**
+   * @description 开始时间戳
+   * @descriptionEn Start timestamp
+   */
+  startTime: number | null;
+  /**
+   * @description Token 估算值
+   * @descriptionEn Estimated token count
+   */
+  tokenCount: number;
+  /**
+   * @description 工具执行进度
+   * @descriptionEn Tool execution progress
+   */
+  toolProgress: ToolProgress | null;
+}
+
+/**
  * @description 输入框上下文状态接口
  * @descriptionEn Input context state interface
  */
@@ -427,6 +481,16 @@ export interface IAgentScopeRuntimeWebUIInputContext {
    * @descriptionEn Get disabled state
    */
   getDisabled: () => boolean | string;
+  /**
+   * @description 处理状态
+   * @descriptionEn Processing state
+   */
+  processing: ProcessingState;
+  /**
+   * @description 设置处理状态
+   * @descriptionEn Set processing state
+   */
+  setProcessing: (state: Partial<ProcessingState>) => void;
 }
 
 /**
