@@ -465,6 +465,36 @@ def list_available_skills() -> list[str]:
     ]
 
 
+def _parse_frontmatter(content: str, default_name: str) -> tuple[str, str]:
+    """Parse YAML frontmatter from skill content.
+
+    Args:
+        content: The skill file content.
+        default_name: Default skill name if not found in frontmatter.
+
+    Returns:
+        Tuple of (skill_name, description).
+    """
+    if not content.startswith("---"):
+        return default_name, ""
+
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return default_name, ""
+
+    try:
+        import yaml
+        frontmatter_dict = yaml.safe_load(parts[1])
+        if frontmatter_dict:
+            skill_name = frontmatter_dict.get("name", default_name)
+            description = frontmatter_dict.get("description", "")
+            return skill_name, description
+    except Exception:
+        pass
+
+    return default_name, ""
+
+
 def get_skill_trigger_rules() -> list[SkillTriggerRule]:
     """
     Get skill trigger rules for detection.
@@ -491,21 +521,7 @@ def get_skill_trigger_rules() -> list[SkillTriggerRule]:
 
         try:
             content = skill_md.read_text(encoding="utf-8")
-
-            # Parse YAML frontmatter
-            skill_name = skill_dir.name
-            description = ""
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    try:
-                        import yaml
-                        frontmatter_dict = yaml.safe_load(parts[1])
-                        if frontmatter_dict:
-                            skill_name = frontmatter_dict.get("name", skill_name)
-                            description = frontmatter_dict.get("description", "")
-                    except Exception:
-                        pass
+            skill_name, description = _parse_frontmatter(content, skill_dir.name)
 
             if description:
                 # Parse trigger conditions from description
@@ -588,21 +604,7 @@ def _read_skills_from_dir(
 
         try:
             content = skill_md.read_text(encoding="utf-8")
-
-            # Parse YAML frontmatter to extract name and description
-            skill_name = skill_dir.name
-            description = ""
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    try:
-                        import yaml
-                        frontmatter_dict = yaml.safe_load(parts[1])
-                        if frontmatter_dict:
-                            skill_name = frontmatter_dict.get("name", skill_name)
-                            description = frontmatter_dict.get("description", "")
-                    except Exception:
-                        pass
+            skill_name, description = _parse_frontmatter(content, skill_dir.name)
 
             # Build references directory tree
             references = {}

@@ -1255,33 +1255,57 @@ class CoPawAgent(ReActAgent):
         if getattr(self, '_in_skill_context', False):
             return None
 
-        try:
-            if not hasattr(self, 'memory') or not self.memory:
-                return None
+        if not hasattr(self, 'memory') or not self.memory:
+            return None
 
-            # Find the last assistant message
-            for msg, _marks in reversed(self.memory.content):
-                if msg.role == "assistant":
-                    content = msg.get_text_content() if hasattr(msg, 'get_text_content') else str(msg.content)
-                    if content:
-                        import re
-                        match = re.search(r'<skill>(\w[\w\-]*)</skill>', content, re.IGNORECASE)
-                        if match:
-                            skill_name = match.group(1)
-                            # Verify it's a registered skill
-                            if skill_name in self._registered_skills:
-                                logger.debug("Parsed skill declaration: %s", skill_name)
-                                return skill_name
-                            else:
-                                logger.debug(
-                                    "Declared skill '%s' not in registered skills: %s",
-                                    skill_name,
-                                    self._registered_skills,
-                                )
-                    break
+        try:
+            skill_name = self._extract_skill_from_last_assistant_message()
+            if skill_name:
+                return self._validate_and_return_skill(skill_name)
         except Exception as e:
             logger.debug("Failed to parse skill declaration: %s", e)
 
+        return None
+
+    def _extract_skill_from_last_assistant_message(self) -> str | None:
+        """Extract skill name from the last assistant message.
+
+        Returns:
+            Skill name if found, None otherwise
+        """
+        for msg, _marks in reversed(self.memory.content):
+            if msg.role != "assistant":
+                continue
+
+            content = msg.get_text_content() if hasattr(msg, 'get_text_content') else str(msg.content)
+            if not content:
+                break
+
+            import re
+            match = re.search(r'<skill>(\w[\w\-]*)</skill>', content, re.IGNORECASE)
+            if match:
+                return match.group(1)
+            break
+        return None
+
+    def _validate_and_return_skill(self, skill_name: str) -> str | None:
+        """Validate skill name against registered skills.
+
+        Args:
+            skill_name: Candidate skill name to validate
+
+        Returns:
+            Skill name if valid, None otherwise
+        """
+        if skill_name in self._registered_skills:
+            logger.debug("Parsed skill declaration: %s", skill_name)
+            return skill_name
+
+        logger.debug(
+            "Declared skill '%s' not in registered skills: %s",
+            skill_name,
+            self._registered_skills,
+        )
         return None
 
     def _set_skill_context(self, skill_name: str) -> None:
