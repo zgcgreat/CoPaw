@@ -37,9 +37,10 @@ async def _publish_reload_after(mgr: CronManager) -> None:
     This notifies all instances that cron configuration has changed.
     The current leader will reload its schedule from the repository.
     """
-    if mgr._coordination is not None:
+    coordination = getattr(mgr, "_coordination", None)
+    if coordination is not None:
         try:
-            await mgr._coordination.publish_reload()
+            await coordination.publish_reload()
         except Exception:  # pylint: disable=broad-except
             # Log but don't fail the mutation if publish fails
             import logging

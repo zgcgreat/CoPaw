@@ -19,15 +19,16 @@ from .service_factories import (
     create_mcp_service,
     create_chat_service,
     create_channel_service,
+    create_cron_service,
+    create_session_checkpoint_service,
     create_agent_config_watcher,
     create_mcp_config_watcher,
 )
 from ..runner import AgentRunner
 from ..runner.task_tracker import TaskTracker
+from ..runner.shared_run_coordinator import RedisSharedRunCoordinator
 from ..mcp import MCPClientManager
-from ..crons.manager import CronManager
 from ..crons.coordination import CoordinationConfig
-from ..crons.repo.json_repo import JsonJobRepository
 from ...config.config import load_agent_config
 from ...agents.memory import ReMeLightMemoryManager
 
@@ -35,6 +36,13 @@ if TYPE_CHECKING:
     from ..channels.base import BaseChannel
 
 logger = logging.getLogger(__name__)
+
+
+def _shared_run_namespace(
+    tenant_id: Optional[str],
+    agent_id: str,
+) -> str:
+    return f"{tenant_id or 'default'}:{agent_id}"
 
 
 def _resolve_memory_class(backend: str) -> type:
@@ -82,7 +90,11 @@ class Workspace:
         self._config = None  # Loaded before start()
         self._started = False
         self._manager = None  # Reference to MultiAgentManager
-        self._task_tracker = TaskTracker()
+        self._task_tracker = TaskTracker(
+            coordinator=RedisSharedRunCoordinator(
+                namespace=_shared_run_namespace(tenant_id, agent_id),
+            ),
+        )
 
         # Register all services
         self._register_services()
@@ -208,6 +220,7 @@ class Workspace:
                 service_class=AgentRunner,
                 init_args=lambda ws: {
                     "agent_id": ws.agent_id,
+                    "tenant_id": ws.tenant_id,
                     "workspace_dir": ws.workspace_dir,
                     "task_tracker": ws._task_tracker,
                 },
@@ -263,6 +276,17 @@ class Workspace:
             ),
         )
 
+        sm.register(
+            ServiceDescriptor(
+                name="session_checkpoint_repo",
+                service_class=None,
+                post_init=create_session_checkpoint_service,
+                stop_method="close",
+                priority=20,
+                concurrent_init=True,
+            ),
+        )
+
         # Priority 25: Runner start
         sm.register(
             ServiceDescriptor(
@@ -293,20 +317,8 @@ class Workspace:
         sm.register(
             ServiceDescriptor(
                 name="cron_manager",
-                service_class=CronManager,
-                init_args=lambda ws: {  # pylint: disable=protected-access
-                    "repo": JsonJobRepository(
-                        str(ws.workspace_dir / "jobs.json"),
-                    ),
-                    "runner": ws._service_manager.services["runner"],
-                    "channel_manager": ws._service_manager.services.get(
-                        "channel_manager",
-                    ),
-                    "timezone": "UTC",
-                    "agent_id": ws.agent_id,
-                    "tenant_id": ws.tenant_id,
-                    "coordination_config": ws._get_cron_coordination_config(),
-                },
+                service_class=None,
+                post_init=create_cron_service,
                 start_method="activate",
                 stop_method="deactivate",
                 priority=40,
@@ -419,6 +431,7 @@ class Workspace:
 
         # Stop all services via ServiceManager (handles reuse automatically)
         await self._service_manager.stop_all(final=final)
+        await self._task_tracker.aclose()
 
         self._started = False
         logger.info(f"Workspace stopped: {self.agent_id}")

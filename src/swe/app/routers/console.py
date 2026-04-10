@@ -14,6 +14,11 @@ from starlette.responses import StreamingResponse
 
 from agentscope_runtime.engine.schemas.agent_schemas import AgentRequest
 from ..agent_context import get_agent_for_request
+from ..runner.shared_run_coordinator import (
+    RunOwnedByAnotherInstanceError,
+    SharedRunCoordinationError,
+)
+from ..runner.run_models import ChatRunContext
 
 
 logger = logging.getLogger(__name__)
@@ -109,23 +114,57 @@ async def post_console_chat(
     )
     tracker = workspace.task_tracker
 
-    is_reconnect = False
-    if isinstance(request_data, dict):
-        is_reconnect = request_data.get("reconnect") is True
+    is_reconnect = (
+        request_data.get("reconnect") is True
+        if isinstance(request_data, dict)
+        else getattr(request_data, "reconnect", False) is True
+    )
 
     if is_reconnect:
         queue = await tracker.attach(chat.id)
         if queue is None:
+            try:
+                owner_instance_id = await tracker.get_owner(chat.id)
+            except SharedRunCoordinationError as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=str(exc),
+                ) from exc
+            if owner_instance_id is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "chat_running_on_another_instance",
+                        "chat_id": chat.id,
+                        "owner_instance_id": owner_instance_id,
+                    },
+                )
             raise HTTPException(
                 status_code=404,
                 detail="No running chat for this session",
             )
     else:
-        queue, _ = await tracker.attach_or_start(
-            chat.id,
-            native_payload,
-            console_channel.stream_one,
-        )
+        try:
+            queue, _ = await tracker.attach_or_start(
+                chat.id,
+                native_payload,
+                console_channel.stream_one,
+                run_context=ChatRunContext.from_chat(chat),
+            )
+        except RunOwnedByAnotherInstanceError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "chat_running_on_another_instance",
+                    "chat_id": exc.run_key,
+                    "owner_instance_id": exc.owner_instance_id,
+                },
+            ) from exc
+        except SharedRunCoordinationError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=str(exc),
+            ) from exc
 
     async def event_generator() -> AsyncGenerator[str, None]:
         # Hold iterator so finally can aclose(); guarantees stream_from_queue's
@@ -162,7 +201,10 @@ async def post_console_chat_stop(
 ) -> dict:
     """Stop the running chat. Only stops when called."""
     workspace = await get_agent_for_request(request)
-    stopped = await workspace.task_tracker.request_stop(chat_id)
+    try:
+        stopped = await workspace.task_tracker.request_stop(chat_id)
+    except SharedRunCoordinationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"stopped": stopped}
 
 
@@ -206,18 +248,12 @@ async def get_push_messages(
     request: Request,
     session_id: str | None = Query(None, description="Session id"),
 ):
-    """Return pending push messages for the current tenant session.
+    """Return pending push messages for the current tenant session."""
+    from ..console_push_store import take
 
-    If session_id is provided, returns messages for that specific session.
-    If session_id is not provided, returns all messages for the tenant.
-    """
-    from ..console_push_store import take, take_all
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
 
     tenant_id = getattr(request.state, "tenant_id", None)
-
-    if session_id:
-        messages = await take(session_id, tenant_id=tenant_id)
-    else:
-        messages = await take_all(tenant_id=tenant_id)
-
+    messages = await take(session_id, tenant_id=tenant_id)
     return {"messages": messages}

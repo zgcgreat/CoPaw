@@ -6,12 +6,14 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from agentscope.memory import InMemoryMemory
 
+from .shared_run_coordinator import SharedRunCoordinationError
 from .session import SafeJSONSession
 from .manager import ChatManager
 from .models import (
     ChatSpec,
     ChatHistory,
 )
+from .run_models import ChatRunRecord
 from .utils import agentscope_msg_to_message
 
 
@@ -61,6 +63,16 @@ async def get_session(
     return workspace.runner.session
 
 
+async def _shared_chat_status(workspace, chat_id: str) -> str:
+    try:
+        return await workspace.task_tracker.get_status(chat_id)
+    except SharedRunCoordinationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="shared run coordination unavailable",
+        ) from exc
+
+
 @router.get("", response_model=list[ChatSpec])
 async def list_chats(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
@@ -76,10 +88,9 @@ async def list_chats(
         mgr: Chat manager dependency
     """
     chats = await mgr.list_chats(user_id=user_id, channel=channel)
-    tracker = workspace.task_tracker
     result = []
     for spec in chats:
-        status = await tracker.get_status(spec.id)
+        status = await _shared_chat_status(workspace, spec.id)
         result.append(spec.model_copy(update={"status": status}))
     return result
 
@@ -162,7 +173,7 @@ async def get_chat(
         chat_spec.session_id,
         chat_spec.user_id,
     )
-    status = await workspace.task_tracker.get_status(chat_id)
+    status = await _shared_chat_status(workspace, chat_id)
     if not state:
         return ChatHistory(messages=[], status=status)
     memory_state = state.get("agent", {}).get("memory", {})
@@ -172,6 +183,22 @@ async def get_chat(
     memories = await memory.get_memory(prepend_summary=False)
     messages = agentscope_msg_to_message(memories)
     return ChatHistory(messages=messages, status=status)
+
+
+@router.get("/{chat_id}/runs", response_model=list[ChatRunRecord])
+async def list_chat_runs(
+    chat_id: str,
+    limit: int = Query(20, ge=1, le=100),
+    mgr: ChatManager = Depends(get_chat_manager),
+):
+    """List durable run records for a chat."""
+    chat = await mgr.get_chat(chat_id)
+    if chat is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Chat not found: {chat_id}",
+        )
+    return await mgr.list_runs(chat_id, limit=limit)
 
 
 @router.put("/{chat_id}", response_model=ChatSpec)

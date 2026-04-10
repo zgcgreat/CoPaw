@@ -327,15 +327,17 @@ async def put_channel(
     description="Return current heartbeat config (interval, target, etc.)",
 )
 async def get_heartbeat(request: Request) -> Any:
-    """Return effective heartbeat config (from file or default)."""
+    """Return durable heartbeat config for the active workspace."""
     from ..agent_context import get_agent_for_request
     from ...config.config import HeartbeatConfig as HeartbeatConfigModel
 
     agent = await get_agent_for_request(request)
-    hb = agent.config.heartbeat
-    if hb is None:
-        # Use default if not configured
-        hb = HeartbeatConfigModel()
+    if agent.cron_manager is not None:
+        hb = await agent.cron_manager.get_heartbeat_config()
+    else:
+        hb = agent.config.heartbeat
+        if hb is None:
+            hb = HeartbeatConfigModel()
     return hb.model_dump(mode="json", by_alias=True)
 
 
@@ -348,9 +350,8 @@ async def put_heartbeat(
     request: Request,
     body: HeartbeatBody = Body(..., description="Heartbeat configuration"),
 ) -> Any:
-    """Update heartbeat config and reschedule the heartbeat job."""
+    """Update durable heartbeat config and reschedule the heartbeat job."""
     from ..agent_context import get_agent_for_request
-    from ...config.config import save_agent_config
 
     agent = await get_agent_for_request(request)
     hb = HeartbeatConfig(
@@ -359,24 +360,12 @@ async def put_heartbeat(
         target=body.target,
         active_hours=body.active_hours,
     )
-    agent.config.heartbeat = hb
-    save_agent_config(agent.agent_id, agent.config)
-
-    # Reschedule heartbeat (async, non-blocking)
-    import asyncio
-
-    async def reschedule_in_background():
-        try:
-            if agent.cron_manager is not None:
-                await agent.cron_manager.reschedule_heartbeat()
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                f"Background reschedule failed: {e}",
-            )
-
-    asyncio.create_task(reschedule_in_background())
+    if agent.cron_manager is None:
+        raise HTTPException(
+            status_code=500,
+            detail="CronManager not initialized",
+        )
+    hb = await agent.cron_manager.update_heartbeat_config(hb)
 
     return hb.model_dump(mode="json", by_alias=True)
 

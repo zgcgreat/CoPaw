@@ -95,3 +95,36 @@ class TestAgentConfigWatcherTenantScope:
             cron_manager=ws._service_manager.services["cron_manager"],
             tenant_id="tenant-a",
         )
+
+    async def test_heartbeat_changes_in_agent_json_do_not_reschedule(
+        self,
+        tmp_path,
+    ):
+        """Heartbeat authority moved out of agent.json and should be ignored."""
+        workspace_dir = tmp_path / "tenant-a" / "workspaces" / "default"
+        workspace_dir.mkdir(parents=True)
+        config_path = workspace_dir / "agent.json"
+        config_path.write_text("{}", encoding="utf-8")
+
+        cron_manager = AsyncMock()
+        watcher = AgentConfigWatcher(
+            agent_id="default",
+            workspace_dir=workspace_dir,
+            channel_manager=None,
+            cron_manager=cron_manager,
+            tenant_id="tenant-a",
+        )
+        watcher._last_mtime = 0.0
+
+        with patch(
+            "swe.app.agent_config_watcher.load_agent_config",
+        ) as mock_load:
+            mock_load.side_effect = [
+                Mock(
+                    channels=None,
+                    heartbeat=Mock(model_dump=lambda mode="json": {}),
+                ),
+            ]
+            await watcher._check()
+
+        cron_manager.reschedule_heartbeat.assert_not_called()

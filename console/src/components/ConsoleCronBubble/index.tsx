@@ -10,6 +10,12 @@ const MAX_VISIBLE_BUBBLES = 4;
 const MAX_NEW_PER_POLL = 2;
 const TITLE_BLINK_PREFIX = "\u2022 ";
 
+interface ConsoleWindow extends Window {
+  currentSessionId?: string;
+}
+
+declare const window: ConsoleWindow;
+
 interface BubbleItem extends PushMessage {
   dismissAt: number;
 }
@@ -31,8 +37,10 @@ export default function ConsoleCronBubble() {
 
   useEffect(() => {
     const tick = () => {
+      const sessionId = window.currentSessionId;
+      if (!sessionId) return;
       consoleApi
-        .getPushMessages()
+        .getPushMessages(sessionId)
         .then((res) => {
           if (!res?.messages?.length) return;
           const seen = seenIdsRef.current;

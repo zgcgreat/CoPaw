@@ -538,8 +538,13 @@ class ConsoleChannel(BaseChannel):
             f"{prefix}{text}\n",
         )
         sid = (meta or {}).get("session_id")
+        tenant_id = getattr(self._workspace, "tenant_id", None)
         if sid and text.strip():
-            await push_store_append(sid, text.strip())
+            await push_store_append(
+                sid,
+                text.strip(),
+                tenant_id=tenant_id,
+            )
 
     async def send_content_parts(
         self,
@@ -552,10 +557,15 @@ class ConsoleChannel(BaseChannel):
         """
         self._print_parts(parts)
         sid = (meta or {}).get("session_id")
+        tenant_id = getattr(self._workspace, "tenant_id", None)
         if sid:
             body = self._parts_to_text(parts, meta)
             if body.strip():
-                await push_store_append(sid, body.strip())
+                await push_store_append(
+                    sid,
+                    body.strip(),
+                    tenant_id=tenant_id,
+                )
 
     # ── lifecycle ───────────────────────────────────────────────────
 

@@ -70,12 +70,15 @@ class AgentRunner(Runner):
     def __init__(
         self,
         agent_id: str = "default",
+        tenant_id: str | None = None,
         workspace_dir: Path | None = None,
         task_tracker: Any | None = None,
+        session_checkpoint_repo: Any | None = None,
     ) -> None:
         super().__init__()
         self.framework_type = "agentscope"
         self.agent_id = agent_id  # Store agent_id for config loading
+        self.tenant_id = tenant_id
         self.workspace_dir = (
             workspace_dir  # Store workspace_dir for prompt building
         )
@@ -84,6 +87,7 @@ class AgentRunner(Runner):
         self._workspace: Any = None  # Workspace instance for control commands
         self.memory_manager: BaseMemoryManager | None = None
         self._task_tracker = task_tracker  # Task tracker for background tasks
+        self._session_checkpoint_repo = session_checkpoint_repo
 
     def set_chat_manager(self, chat_manager):
         """Set chat manager for auto-registration.
@@ -108,6 +112,10 @@ class AgentRunner(Runner):
             workspace: Workspace instance
         """
         self._workspace = workspace
+
+    def set_session_checkpoint_repo(self, repo) -> None:
+        """Set the authoritative session checkpoint repository."""
+        self._session_checkpoint_repo = repo
 
     _APPROVAL_TIMEOUT_SECONDS = TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS
 
@@ -644,7 +652,11 @@ class AgentRunner(Runner):
             (self.workspace_dir if self.workspace_dir else WORKING_DIR)
             / "sessions",
         )
-        self.session = SafeJSONSession(save_dir=session_dir)
+        self.session = SafeJSONSession(
+            save_dir=session_dir,
+            tenant_id=self.tenant_id,
+            checkpoint_repo=self._session_checkpoint_repo,
+        )
 
     async def shutdown_handler(self, *args, **kwargs):
         """

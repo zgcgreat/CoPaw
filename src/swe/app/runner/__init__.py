@@ -1,19 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Runner module with chat manager for coordinating repository."""
+"""Lazy runner package exports."""
 from __future__ import annotations
-
-from .runner import AgentRunner
-from .api import router
-from .manager import ChatManager
-from .models import (
-    ChatSpec,
-    ChatHistory,
-    ChatsFile,
-)
-from .repo import (
-    BaseChatRepository,
-    JsonChatRepository,
-)
 
 
 __all__ = [
@@ -26,9 +13,14 @@ __all__ = [
     "ChatSpec",
     "ChatHistory",
     "ChatsFile",
+    "ChatRunContext",
+    "ChatRunRecord",
     # Chat Repository
     "BaseChatRepository",
+    "BaseChatRunRepository",
     "JsonChatRepository",
+    "MysqlChatRepository",
+    "MysqlChatRunRepository",
 ]
 
 
@@ -58,15 +50,38 @@ def __getattr__(name: str):
             "ChatsFile": _ChatsFile,
         }
         return exports[name]
-    if name in {"BaseChatRepository", "JsonChatRepository"}:
+    if name in {"ChatRunContext", "ChatRunRecord"}:
+        from .run_models import (
+            ChatRunContext as _ChatRunContext,
+            ChatRunRecord as _ChatRunRecord,
+        )
+
+        exports = {
+            "ChatRunContext": _ChatRunContext,
+            "ChatRunRecord": _ChatRunRecord,
+        }
+        return exports[name]
+    if name in {
+        "BaseChatRepository",
+        "BaseChatRunRepository",
+        "JsonChatRepository",
+        "MysqlChatRepository",
+        "MysqlChatRunRepository",
+    }:
         from .repo import (
             BaseChatRepository as _BaseChatRepository,
+            BaseChatRunRepository as _BaseChatRunRepository,
             JsonChatRepository as _JsonChatRepository,
+            MysqlChatRepository as _MysqlChatRepository,
+            MysqlChatRunRepository as _MysqlChatRunRepository,
         )
 
         exports = {
             "BaseChatRepository": _BaseChatRepository,
+            "BaseChatRunRepository": _BaseChatRunRepository,
             "JsonChatRepository": _JsonChatRepository,
+            "MysqlChatRepository": _MysqlChatRepository,
+            "MysqlChatRunRepository": _MysqlChatRunRepository,
         }
         return exports[name]
     raise AttributeError(name)

@@ -128,6 +128,7 @@ async def run_heartbeat_once(
     channel_manager: Any,
     agent_id: Optional[str] = None,
     workspace_dir: Optional[Path] = None,
+    heartbeat_config: Any = None,
 ) -> None:
     """
     Run one heartbeat: read HEARTBEAT.md from workspace, run agent,
@@ -141,7 +142,7 @@ async def run_heartbeat_once(
     """
     from ...config.config import load_agent_config
 
-    hb = get_heartbeat_config(agent_id)
+    hb = heartbeat_config or get_heartbeat_config(agent_id)
     if not _in_active_hours(hb.active_hours):
         logger.debug("heartbeat skipped: outside active hours")
         return

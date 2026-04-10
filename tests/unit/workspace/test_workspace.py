@@ -94,3 +94,95 @@ def test_workspace_repr():
         assert "test123" in repr_str
         assert "stopped" in repr_str
         assert "Workspace" in repr_str
+
+
+@pytest.mark.asyncio
+async def test_create_cron_service_uses_mysql_storage_and_importer(
+    monkeypatch,
+    tmp_path,
+):
+    from types import SimpleNamespace
+
+    from swe.app.workspace.service_factories import create_cron_service
+
+    created = {}
+
+    class FakeRunner:
+        workspace_dir = tmp_path
+
+    class FakeStore:
+        def __init__(self, settings):
+            created["settings"] = settings
+
+        async def ensure_schema(self):
+            created["schema"] = True
+
+    class FakeJobRepo:
+        def __init__(self, store, scope):
+            created["job_scope"] = scope
+
+    class FakeHeartbeatRepo:
+        def __init__(self, store, scope):
+            created["heartbeat_scope"] = scope
+
+    class FakeImporter:
+        def __init__(self, *, primary_repo, heartbeat_repo, legacy_repo):
+            created["legacy_repo"] = legacy_repo
+
+        async def import_if_needed(self, *, legacy_heartbeat=None):
+            created["legacy_heartbeat"] = legacy_heartbeat
+
+    class FakeCronManager:
+        def __init__(self, **kwargs):
+            created["manager_kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.CronMySQLSettings.from_env",
+        classmethod(lambda cls: SimpleNamespace(database="cron")),
+    )
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.MySQLCronStore",
+        FakeStore,
+    )
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.MysqlJobRepository",
+        FakeJobRepo,
+    )
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.MysqlHeartbeatRepository",
+        FakeHeartbeatRepo,
+    )
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.CronStorageImporter",
+        FakeImporter,
+    )
+    monkeypatch.setattr(
+        "swe.app.workspace.service_factories.CronManager",
+        FakeCronManager,
+    )
+
+    class FakeWorkspace:
+        agent_id = "agent-1"
+        tenant_id = "tenant-a"
+        workspace_dir = tmp_path
+        _config = SimpleNamespace(heartbeat="legacy-heartbeat")
+        _service_manager = SimpleNamespace(
+            services={
+                "runner": FakeRunner(),
+                "channel_manager": object(),
+            },
+        )
+
+        def _get_cron_coordination_config(self):
+            return "coordination-config"
+
+    await create_cron_service(FakeWorkspace(), None)
+
+    assert created["schema"] is True
+    assert created["job_scope"].tenant_id == "tenant-a"
+    assert created["job_scope"].agent_id == "agent-1"
+    assert created["heartbeat_scope"] == created["job_scope"]
+    assert created["legacy_heartbeat"] == "legacy-heartbeat"
+    assert created["manager_kwargs"]["coordination_config"] == (
+        "coordination-config"
+    )

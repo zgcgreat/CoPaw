@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .models import ChatSpec
+from .run_models import ChatRunContext, ChatRunRecord, ChatRunStatus
 from .repo import BaseChatRepository
+from .repo.run_base import BaseChatRunRepository
 from ..channels.schema import DEFAULT_CHANNEL
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ class ChatManager:
         self,
         *,
         repo: BaseChatRepository,
+        run_repo: BaseChatRunRepository | None = None,
     ):
         """Initialize chat manager.
 
@@ -34,6 +37,7 @@ class ChatManager:
             repo: Chat spec repository for persistence
         """
         self._repo = repo
+        self._run_repo = run_repo
         self._lock = asyncio.Lock()
         repo_path = getattr(repo, "path", "<unknown>")
         logger.info(
@@ -65,6 +69,48 @@ class ChatManager:
                 user_id=user_id,
                 channel=channel,
             )
+
+    async def start_run(self, context: ChatRunContext) -> ChatRunRecord:
+        if self._run_repo is None:
+            raise RuntimeError("Chat run repository is not configured")
+
+        record = ChatRunRecord(
+            chat_id=context.chat_id,
+            session_id=context.session_id,
+            user_id=context.user_id,
+            channel=context.channel,
+            status="running",
+        )
+        async with self._lock:
+            return await self._run_repo.create_run(record)
+
+    async def finish_run(
+        self,
+        run_id: str,
+        *,
+        status: ChatRunStatus,
+        error: str | None = None,
+    ) -> None:
+        if self._run_repo is None:
+            raise RuntimeError("Chat run repository is not configured")
+
+        async with self._lock:
+            await self._run_repo.finish_run(
+                run_id,
+                status=status,
+                error=error,
+            )
+
+    async def list_runs(
+        self,
+        chat_id: str,
+        limit: int = 20,
+    ) -> list[ChatRunRecord]:
+        if self._run_repo is None:
+            return []
+
+        async with self._lock:
+            return await self._run_repo.list_runs(chat_id, limit=limit)
 
     async def get_chat(self, chat_id: str) -> Optional[ChatSpec]:
         """Get chat spec by chat_id (UUID).
@@ -105,7 +151,7 @@ class ChatManager:
                 f"session_id={session_id}, user_id={user_id}, "
                 f"channel={channel}",
             )
-            existing = await self._repo.get_chat_by_id(
+            existing = await self._repo.get_chat_by_session(
                 session_id,
                 user_id,
                 channel,

@@ -6,6 +6,8 @@ export interface PushMessage {
 }
 
 export const consoleApi = {
-  getPushMessages: () =>
-    request<{ messages: PushMessage[] }>("/console/push-messages"),
+  getPushMessages: (sessionId: string) =>
+    request<{ messages: PushMessage[] }>(
+      `/console/push-messages?session_id=${encodeURIComponent(sessionId)}`,
+    ),
 };

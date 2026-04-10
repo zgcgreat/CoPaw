@@ -9,6 +9,24 @@ improve testability and code organization.
 from typing import TYPE_CHECKING
 import logging
 
+from ..crons.manager import CronManager
+from ..crons.repo.importer import CronStorageImporter
+from ..crons.repo.json_repo import JsonJobRepository
+from ..crons.repo.mysql_heartbeat_repo import MysqlHeartbeatRepository
+from ..crons.repo.mysql_job_repo import MysqlJobRepository
+from ..crons.repo.mysql_support import (
+    CronMySQLSettings,
+    CronStorageScope,
+    MySQLCronStore,
+)
+from ..persistence.mysql import (
+    create_control_store_engine,
+    ensure_control_store_schema,
+)
+from ..runner.repo.session_checkpoint_mysql import (
+    MySQLSessionCheckpointRepository,
+)
+
 if TYPE_CHECKING:
     from .workspace import Workspace
 
@@ -43,6 +61,11 @@ async def create_chat_service(ws: "Workspace", service):
     # pylint: disable=protected-access
     from ..runner.manager import ChatManager
     from ..runner.repo.json_repo import JsonChatRepository
+    from ..runner.repo.migrating_repo import MigratingChatRepository
+    from ..runner.repo.mysql_chat_repo import MysqlChatRepository
+    from ..runner.repo.mysql_run_repo import MysqlChatRunRepository
+    from ..persistence.mysql import create_control_store_engine
+    from ...constant import MYSQL_CHAT_CONTROL_PARITY_CHECK
 
     if service is not None:
         # Reused ChatManager - just wire to new runner
@@ -51,14 +74,34 @@ async def create_chat_service(ws: "Workspace", service):
         logger.info(f"Reusing ChatManager for {ws.agent_id}")
     else:
         # Create new ChatManager
-        chats_path = str(ws.workspace_dir / "chats.json")
-        chat_repo = JsonChatRepository(chats_path)
-        cm = ChatManager(repo=chat_repo)
+        tenant_id = ws.tenant_id or "default"
+        engine = create_control_store_engine()
+        json_repo = JsonChatRepository(ws.workspace_dir / "chats.json")
+        chat_repo = MigratingChatRepository(
+            MysqlChatRepository(
+                engine,
+                tenant_id=tenant_id,
+                agent_id=ws.agent_id,
+            ),
+            import_repo=json_repo,
+            parity_check=MYSQL_CHAT_CONTROL_PARITY_CHECK,
+        )
+        run_repo = MysqlChatRunRepository(
+            engine,
+            tenant_id=tenant_id,
+            agent_id=ws.agent_id,
+        )
+        cm = ChatManager(repo=chat_repo, run_repo=run_repo)
         ws._service_manager.services["chat_manager"] = cm
-        logger.info(f"ChatManager created: {chats_path}")
+        logger.info(
+            "ChatManager created for tenant=%s agent=%s",
+            tenant_id,
+            ws.agent_id,
+        )
 
     # Always wire to new runner
     ws._service_manager.services["runner"].set_chat_manager(cm)
+    ws._task_tracker.bind_chat_manager(cm)
     # pylint: enable=protected-access
 
 
@@ -143,6 +186,54 @@ async def create_agent_config_watcher(ws: "Workspace", _):
     ws._service_manager.services["agent_config_watcher"] = watcher
     return watcher
     # pylint: enable=protected-access
+
+
+async def create_cron_service(ws: "Workspace", _):
+    """Create cron manager backed by durable MySQL storage."""
+    tenant_id = ws.tenant_id or "default"
+    scope = CronStorageScope(
+        tenant_id=tenant_id,
+        agent_id=ws.agent_id,
+    )
+    settings = CronMySQLSettings.from_env()
+    store = MySQLCronStore(settings)
+    await store.ensure_schema()
+
+    job_repo = MysqlJobRepository(store, scope)
+    heartbeat_repo = MysqlHeartbeatRepository(store, scope)
+    importer = CronStorageImporter(
+        primary_repo=job_repo,
+        heartbeat_repo=heartbeat_repo,
+        legacy_repo=JsonJobRepository(ws.workspace_dir / "jobs.json"),
+    )
+    await importer.import_if_needed(
+        legacy_heartbeat=ws._config.heartbeat,
+    )
+
+    manager = CronManager(
+        repo=job_repo,
+        heartbeat_repo=heartbeat_repo,
+        runner=ws._service_manager.services["runner"],
+        channel_manager=ws._service_manager.services.get(
+            "channel_manager",
+        ),
+        timezone="UTC",
+        agent_id=ws.agent_id,
+        tenant_id=ws.tenant_id,
+        coordination_config=ws._get_cron_coordination_config(),
+    )
+    ws._service_manager.services["cron_manager"] = manager
+    return manager
+
+
+async def create_session_checkpoint_service(ws: "Workspace", _):
+    """Create authoritative session checkpoint metadata repository."""
+    engine = create_control_store_engine()
+    await ensure_control_store_schema(engine)
+    repo = MySQLSessionCheckpointRepository(engine=engine, agent_id=ws.agent_id)
+    ws._service_manager.services["runner"].set_session_checkpoint_repo(repo)
+    ws._service_manager.services["session_checkpoint_repo"] = repo
+    return repo
 
 
 async def create_mcp_config_watcher(ws: "Workspace", _):

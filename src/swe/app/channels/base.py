@@ -35,6 +35,8 @@ from agentscope_runtime.engine.schemas.agent_schemas import (
 
 from .renderer import MessageRenderer, RenderStyle
 from .schema import ChannelType
+from ..runner.run_models import ChatRunContext
+from ..runner.shared_run_coordinator import RunOwnedByAnotherInstanceError
 from ..tenant_context import bind_tenant_context
 from ...config.utils import load_config
 
@@ -403,11 +405,21 @@ class BaseChannel(ABC):
             f"session={session_id[:30]}",
         )
 
-        queue, is_new = await self._workspace.task_tracker.attach_or_start(
-            chat.id,
-            payload,
-            self._stream_with_tracker,
-        )
+        try:
+            queue, is_new = await self._workspace.task_tracker.attach_or_start(
+                chat.id,
+                payload,
+                self._stream_with_tracker,
+                run_context=ChatRunContext.from_chat(chat),
+            )
+        except RunOwnedByAnotherInstanceError as exc:
+            logger.warning(
+                "Message ignored because run is active on another instance: "
+                "chat_id=%s owner_instance_id=%s",
+                chat.id,
+                exc.owner_instance_id,
+            )
+            return
 
         if is_new:
             try:

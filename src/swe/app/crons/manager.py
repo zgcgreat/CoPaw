@@ -12,6 +12,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ...config import get_heartbeat_config
+from ...config.config import HeartbeatConfig
 
 from ..tenant_context import bind_tenant_context
 from ..console_push_store import append as push_store_append
@@ -54,6 +55,7 @@ class CronManager:
         self,
         *,
         repo: BaseJobRepository,
+        heartbeat_repo: Any = None,
         runner: Any,
         channel_manager: Any,
         timezone: str = "UTC",  # pylint: disable=redefined-outer-name
@@ -62,6 +64,7 @@ class CronManager:
         coordination_config: Optional[CoordinationConfig] = None,
     ):
         self._repo = repo
+        self._heartbeat_repo = heartbeat_repo
         self._runner = runner
         self._channel_manager = channel_manager
         self._agent_id = agent_id
@@ -518,7 +521,7 @@ class CronManager:
             self._scheduler.remove_job(HEARTBEAT_JOB_ID)
             self._active_jobs.discard(HEARTBEAT_JOB_ID)
 
-        hb = get_heartbeat_config(self._agent_id)
+        hb = await self.get_heartbeat_config()
         if getattr(hb, "enabled", False):
             trigger = self._build_heartbeat_trigger(hb.every)
             self._scheduler.add_job(
@@ -541,6 +544,34 @@ class CronManager:
 
     async def get_job(self, job_id: str) -> Optional[CronJobSpec]:
         return await self._repo.get_job(job_id)
+
+    async def get_heartbeat_config(self) -> HeartbeatConfig:
+        if self._heartbeat_repo is None:
+            return get_heartbeat_config(self._agent_id)
+        return await self._heartbeat_repo.get()
+
+    async def update_heartbeat_config(
+        self,
+        config: HeartbeatConfig,
+    ) -> HeartbeatConfig:
+        if self._heartbeat_repo is None:
+            raise RuntimeError("Heartbeat repository is not configured")
+
+        async with self._lock:
+            saved = await self._heartbeat_repo.set(config)
+            if self._started and self._scheduler is not None:
+                await self._update_heartbeat()
+
+        if self._coordination is not None:
+            try:
+                await self._coordination.publish_reload()
+            except Exception:  # pylint: disable=broad-except
+                logger.warning(
+                    "Failed to publish reload signal after heartbeat update",
+                    exc_info=True,
+                )
+
+        return saved
 
     def get_state(self, job_id: str) -> CronJobState:
         return self._states.get(job_id, CronJobState())
@@ -857,6 +888,7 @@ class CronManager:
                     channel_manager=self._channel_manager,
                     agent_id=self._agent_id,
                     workspace_dir=workspace_dir,
+                    heartbeat_config=await self.get_heartbeat_config(),
                 )
         except asyncio.CancelledError:
             logger.info("heartbeat cancelled")

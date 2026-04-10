@@ -47,3 +47,48 @@ def test_workspace_registers_concrete_runner_service(tmp_path):
     descriptor = workspace._service_manager.descriptors["runner"]  # pylint: disable=protected-access
 
     assert descriptor.service_class is not None
+
+
+def test_workspace_uses_namespaced_task_tracker(tmp_path):
+    """Workspace should namespace shared run coordination by tenant/agent."""
+    from swe.app.workspace import Workspace
+
+    workspace = Workspace(
+        agent_id="agent-a",
+        workspace_dir=str(tmp_path / "agent-a"),
+        tenant_id="tenant-a",
+    )
+
+    assert workspace.task_tracker._coordinator.namespace == "tenant-a:agent-a"  # pylint: disable=protected-access
+
+
+def test_workspace_stop_closes_task_tracker(tmp_path):
+    """Workspace stop should close the shared task tracker coordinator."""
+    from swe.app.workspace import Workspace
+
+    workspace = Workspace(
+        agent_id="agent-a",
+        workspace_dir=str(tmp_path / "agent-a"),
+        tenant_id="tenant-a",
+    )
+
+    calls = []
+
+    async def _fake_stop_all(*, final):
+        calls.append(("stop_all", final))
+
+    async def _fake_aclose():
+        calls.append(("aclose", None))
+
+    workspace._started = True  # pylint: disable=protected-access
+    workspace._service_manager.stop_all = _fake_stop_all  # pylint: disable=protected-access
+    workspace.task_tracker.aclose = _fake_aclose
+
+    import asyncio
+
+    asyncio.run(workspace.stop())
+
+    assert calls == [
+        ("stop_all", True),
+        ("aclose", None),
+    ]

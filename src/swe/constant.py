@@ -446,3 +446,36 @@ CRON_LOCK_SAFETY_MARGIN_SECONDS = EnvVarLoader.get_int(
     30,
     min_value=5,
 )
+
+# Redis coordination for shared interactive chat runs
+SHARED_RUN_REDIS_URL = EnvVarLoader.get_str(
+    "SWE_SHARED_RUN_REDIS_URL",
+    "redis://127.0.0.1:6379/0",
+)
+
+SHARED_RUN_LEASE_TTL_SECONDS = EnvVarLoader.get_int(
+    "SWE_SHARED_RUN_LEASE_TTL_SECONDS",
+    30,
+    min_value=5,
+)
+
+SHARED_RUN_HEARTBEAT_SECONDS = EnvVarLoader.get_float(
+    "SWE_SHARED_RUN_HEARTBEAT_SECONDS",
+    10.0,
+    min_value=1.0,
+)
+
+SHARED_RUN_CANCEL_TTL_SECONDS = EnvVarLoader.get_int(
+    "SWE_SHARED_RUN_CANCEL_TTL_SECONDS",
+    60,
+    min_value=5,
+)
+
+MYSQL_CHAT_CONTROL_DSN = EnvVarLoader.get_str(
+    "SWE_MYSQL_CHAT_CONTROL_DSN",
+    "",
+)
+MYSQL_CHAT_CONTROL_PARITY_CHECK = EnvVarLoader.get_bool(
+    "SWE_MYSQL_CHAT_CONTROL_PARITY_CHECK",
+    False,
+)

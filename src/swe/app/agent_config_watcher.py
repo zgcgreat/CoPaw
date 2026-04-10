@@ -17,20 +17,12 @@ from ..config.config import load_agent_config
 from ..config.utils import get_available_channels
 
 if TYPE_CHECKING:
-    from ..config.config import ChannelConfig, HeartbeatConfig
+    from ..config.config import ChannelConfig
 
 logger = logging.getLogger(__name__)
 
 # How often to poll (seconds)
 DEFAULT_POLL_INTERVAL = 2.0
-
-
-def _heartbeat_hash(hb: Optional[HeartbeatConfig]) -> int:
-    """Hash of heartbeat config for change detection."""
-    if hb is None:
-        return hash("None")
-    return hash(str(hb.model_dump(mode="json")))
-
 
 class AgentConfigWatcher:
     """Poll agent.json mtime and reload changed configs automatically.
@@ -70,7 +62,6 @@ class AgentConfigWatcher:
         # Snapshot of the last known config (for diffing)
         self._last_channels: Optional[ChannelConfig] = None
         self._last_channels_hash: Optional[int] = None
-        self._last_heartbeat_hash: Optional[int] = None
         # mtime of agent.json at last check
         self._last_mtime: float = 0.0
 
@@ -128,9 +119,6 @@ class AgentConfigWatcher:
                 self._last_channels = None
                 self._last_channels_hash = None
 
-            self._last_heartbeat_hash = _heartbeat_hash(
-                agent_config.heartbeat,
-            )
         except Exception:
             logger.exception(
                 f"AgentConfigWatcher: failed to load initial config "
@@ -138,7 +126,6 @@ class AgentConfigWatcher:
             )
             self._last_channels = None
             self._last_channels_hash = None
-            self._last_heartbeat_hash = None
 
     @staticmethod
     def _channels_hash(channels: ChannelConfig) -> int:
@@ -225,28 +212,6 @@ class AgentConfigWatcher:
         self._last_channels = new_channels.model_copy(deep=True)
         self._last_channels_hash = self._channels_hash(new_channels)
 
-    async def _apply_heartbeat_change(self, agent_config: Any) -> None:
-        """Update heartbeat hash and reschedule if changed."""
-        new_hb_hash = _heartbeat_hash(agent_config.heartbeat)
-        if (
-            self._cron_manager is not None
-            and new_hb_hash != self._last_heartbeat_hash
-        ):
-            self._last_heartbeat_hash = new_hb_hash
-            try:
-                await self._cron_manager.reschedule_heartbeat()
-                logger.info(
-                    f"AgentConfigWatcher ({self._agent_id}): "
-                    f"heartbeat rescheduled",
-                )
-            except Exception:
-                logger.exception(
-                    f"AgentConfigWatcher ({self._agent_id}): "
-                    f"failed to reschedule heartbeat",
-                )
-        else:
-            self._last_heartbeat_hash = new_hb_hash
-
     async def _poll_loop(self) -> None:
         """Main polling loop."""
         while True:
@@ -283,5 +248,3 @@ class AgentConfigWatcher:
         # Apply changes
         if self._channel_manager:
             await self._apply_channel_changes(agent_config)
-        if self._cron_manager:
-            await self._apply_heartbeat_change(agent_config)
