@@ -6,6 +6,8 @@ import asyncio
 import logging
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from ..models import ChatSpec
 from .base import BaseChatRepository
 
@@ -32,6 +34,24 @@ class MigratingChatRepository(BaseChatRepository):
     @staticmethod
     def _chat_scope_key(chat: ChatSpec) -> tuple[str, str, str]:
         return (chat.session_id, chat.user_id, chat.channel)
+
+    async def _import_chat_idempotently(self, chat: ChatSpec) -> ChatSpec:
+        try:
+            await self._authoritative_repo.upsert_chat(chat)
+            return chat
+        except IntegrityError:
+            existing = await self._authoritative_repo.get_chat(chat.id)
+            if existing is not None:
+                return existing
+
+            existing = await self._authoritative_repo.get_chat_by_session(
+                chat.session_id,
+                chat.user_id,
+                chat.channel,
+            )
+            if existing is None:
+                raise
+            return existing
 
     async def _maybe_check_parity(self) -> None:
         if not self._parity_check or self._import_repo is None:
@@ -70,9 +90,9 @@ class MigratingChatRepository(BaseChatRepository):
                     continue
                 if self._chat_scope_key(chat) in primary_scope_keys:
                     continue
-                await self._authoritative_repo.upsert_chat(chat)
-                primary_ids.add(chat.id)
-                primary_scope_keys.add(self._chat_scope_key(chat))
+                imported_chat = await self._import_chat_idempotently(chat)
+                primary_ids.add(imported_chat.id)
+                primary_scope_keys.add(self._chat_scope_key(imported_chat))
             self._import_complete = True
 
         await self._maybe_check_parity()

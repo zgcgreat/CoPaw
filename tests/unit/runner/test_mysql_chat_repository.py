@@ -5,6 +5,20 @@ import pytest
 from swe.app.runner.models import ChatSpec
 
 
+class _TwoPartyGate:
+    def __init__(self) -> None:
+        self._count = 0
+        self._lock = asyncio.Lock()
+        self._ready = asyncio.Event()
+
+    async def wait(self) -> None:
+        async with self._lock:
+            self._count += 1
+            if self._count == 2:
+                self._ready.set()
+        await self._ready.wait()
+
+
 @pytest.mark.asyncio
 async def test_mysql_repo_is_scoped_by_tenant_and_agent(tmp_path):
     from swe.app.persistence.mysql import create_control_store_engine
@@ -196,6 +210,96 @@ async def test_migrating_repo_merges_missing_legacy_chats_into_non_empty_primary
     assert {chat.id for chat in chats} == {"current-chat", "legacy-chat"}
     assert await primary.get_chat("legacy-chat") is not None
     assert await primary.get_chat("legacy-duplicate-session") is None
+
+
+@pytest.mark.asyncio
+async def test_migrating_repo_import_is_idempotent_across_instances(
+    tmp_path,
+):
+    from sqlalchemy import insert, select, update
+
+    from swe.app.persistence.mysql import (
+        create_control_store_engine,
+        ensure_control_store_schema,
+    )
+    from swe.app.runner.repo.json_repo import JsonChatRepository
+    from swe.app.runner.repo.migrating_repo import MigratingChatRepository
+    from swe.app.runner.repo.mysql_chat_repo import MysqlChatRepository
+    from swe.app.runner.repo.mysql_schema import chat_specs_table
+
+    class CoordinatedMysqlChatRepository(MysqlChatRepository):
+        def __init__(self, *args, gate: _TwoPartyGate, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._gate = gate
+
+        async def upsert_chat(self, spec: ChatSpec) -> None:
+            await ensure_control_store_schema(self._engine)
+            values = self._spec_values(spec)
+            values["tenant_id"] = self._tenant_id
+            values["agent_id"] = self._agent_id
+
+            async with self._session_factory() as session:
+                existing = await session.execute(
+                    select(chat_specs_table.c.chat_id).where(
+                        *self._scope(),
+                        chat_specs_table.c.chat_id == spec.id,
+                    ),
+                )
+                await self._gate.wait()
+                if existing.scalar_one_or_none() is None:
+                    await session.execute(insert(chat_specs_table).values(**values))
+                else:
+                    await session.execute(
+                        update(chat_specs_table)
+                        .where(
+                            *self._scope(),
+                            chat_specs_table.c.chat_id == spec.id,
+                        )
+                        .values(**values),
+                    )
+                await session.commit()
+
+    json_repo = JsonChatRepository(tmp_path / "chats.json")
+    await json_repo.upsert_chat(
+        ChatSpec(
+            id="legacy-chat",
+            name="Legacy",
+            session_id="console:legacy",
+            user_id="legacy",
+            channel="console",
+        ),
+    )
+
+    engine = create_control_store_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'chat.db'}",
+    )
+    gate = _TwoPartyGate()
+    repo_a = MigratingChatRepository(
+        CoordinatedMysqlChatRepository(
+            engine,
+            tenant_id="tenant-a",
+            agent_id="a1",
+            gate=gate,
+        ),
+        import_repo=json_repo,
+    )
+    repo_b = MigratingChatRepository(
+        CoordinatedMysqlChatRepository(
+            engine,
+            tenant_id="tenant-a",
+            agent_id="a1",
+            gate=gate,
+        ),
+        import_repo=json_repo,
+    )
+
+    chats_a, chats_b = await asyncio.gather(
+        repo_a.list_chats(),
+        repo_b.list_chats(),
+    )
+
+    assert [chat.id for chat in chats_a] == ["legacy-chat"]
+    assert [chat.id for chat in chats_b] == ["legacy-chat"]
 
 
 @pytest.mark.asyncio
