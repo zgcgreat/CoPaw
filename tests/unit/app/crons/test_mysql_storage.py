@@ -129,11 +129,11 @@ async def test_importer_backfills_legacy_jobs_and_heartbeat_when_primary_empty()
 
 
 @pytest.mark.asyncio
-async def test_importer_skips_existing_authoritative_rows():
+async def test_importer_backfills_missing_legacy_jobs_when_primary_non_empty():
     from swe.app.crons.repo.importer import CronStorageImporter
 
     primary_repo = _InMemoryJobRepo([_job("current")])
-    legacy_repo = _InMemoryJobRepo([_job("legacy")])
+    legacy_repo = _InMemoryJobRepo([_job("current"), _job("legacy")])
     heartbeat_repo = _InMemoryHeartbeatRepo(
         HeartbeatConfig(enabled=True, every="30m", target="main"),
     )
@@ -151,9 +151,12 @@ async def test_importer_skips_existing_authoritative_rows():
         ),
     )
 
-    assert imported.jobs_imported == 0
+    assert imported.jobs_imported == 1
     assert imported.heartbeat_imported is False
-    assert [job.id for job in await primary_repo.list_jobs()] == ["current"]
+    assert [job.id for job in await primary_repo.list_jobs()] == [
+        "current",
+        "legacy",
+    ]
     assert await heartbeat_repo.get() == HeartbeatConfig(
         enabled=True,
         every="30m",

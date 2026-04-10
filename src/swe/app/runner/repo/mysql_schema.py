@@ -9,6 +9,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.sqlite import JSON as SQLITE_JSON
@@ -52,7 +53,7 @@ chat_runs_table = Table(
     Column("channel", String(255), nullable=False),
     Column("started_at", DateTime(timezone=True), nullable=False),
     Column("finished_at", DateTime(timezone=True), nullable=True),
-    Column("error", String, nullable=True),
+    Column("error", Text, nullable=True),
 )
 
 session_checkpoints_table = Table(
@@ -63,6 +64,6 @@ session_checkpoints_table = Table(
     Column("user_id", String(255), primary_key=True),
     Column("session_id", String(255), primary_key=True),
     Column("version", Integer, nullable=False),
-    Column("blob_path", String, nullable=False),
+    Column("blob_path", Text, nullable=False),
     Column("payload_sha256", String(64), nullable=False),
 )

@@ -27,10 +27,15 @@ class CronStorageImporter:
     ) -> CronImportResult:
         jobs_imported = 0
 
-        if not await self._primary_repo.list_jobs():
-            for job in await self._legacy_repo.list_jobs():
-                await self._primary_repo.upsert_job(job)
-                jobs_imported += 1
+        primary_job_ids = {
+            job.id for job in await self._primary_repo.list_jobs()
+        }
+        for job in await self._legacy_repo.list_jobs():
+            if job.id in primary_job_ids:
+                continue
+            await self._primary_repo.upsert_job(job)
+            primary_job_ids.add(job.id)
+            jobs_imported += 1
 
         heartbeat_imported = False
         if (
