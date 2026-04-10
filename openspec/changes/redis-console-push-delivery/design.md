@@ -10,7 +10,8 @@ This change is intentionally narrow. It fixes cross-instance delivery of push me
 - Make console push delivery instance-agnostic across reads and writes.
 - Preserve tenant and session isolation for push retrieval.
 - Preserve short-lived retention and bounded queue behavior.
-- Keep the API contract of `/api/console/push-messages` stable for callers.
+- Keep the append/take delivery semantics stable while requiring callers to
+  provide the target `session_id` explicitly.
 
 **Non-Goals:**
 - Solving chat run ownership, stop routing, or reconnect semantics in this change.
