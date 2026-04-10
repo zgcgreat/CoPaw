@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from .models import ChatSpec
 from .run_models import ChatRunContext, ChatRunRecord, ChatRunStatus
 from .repo import BaseChatRepository
@@ -175,7 +177,22 @@ class ChatManager:
             )
             logger.debug(f"get_or_create_chat: created spec={spec.id}")
             # Call internal create without lock (already locked)
-            await self._repo.upsert_chat(spec)
+            try:
+                await self._repo.upsert_chat(spec)
+            except IntegrityError:
+                existing = await self._repo.get_chat_by_session(
+                    session_id,
+                    user_id,
+                    channel,
+                )
+                if existing is None:
+                    raise
+                logger.debug(
+                    "get_or_create_chat: reused existing chat after "
+                    "concurrent insert: %s",
+                    existing.id,
+                )
+                return existing
             logger.debug(
                 f"Auto-registered new chat: {spec.id} -> {session_id}",
             )

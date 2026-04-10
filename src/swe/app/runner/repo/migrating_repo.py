@@ -29,6 +29,10 @@ class MigratingChatRepository(BaseChatRepository):
         self._import_complete = import_repo is None
         self.path = getattr(authoritative_repo, "path", "<unknown>")
 
+    @staticmethod
+    def _chat_scope_key(chat: ChatSpec) -> tuple[str, str, str]:
+        return (chat.session_id, chat.user_id, chat.channel)
+
     async def _maybe_check_parity(self) -> None:
         if not self._parity_check or self._import_repo is None:
             return
@@ -55,13 +59,20 @@ class MigratingChatRepository(BaseChatRepository):
                 return
 
             assert self._import_repo is not None
-            if await self._authoritative_repo.list_chats():
-                self._import_complete = True
-                await self._maybe_check_parity()
-                return
+            authoritative_chats = await self._authoritative_repo.list_chats()
+            primary_ids = {chat.id for chat in authoritative_chats}
+            primary_scope_keys = {
+                self._chat_scope_key(chat) for chat in authoritative_chats
+            }
 
             for chat in await self._import_repo.list_chats():
+                if chat.id in primary_ids:
+                    continue
+                if self._chat_scope_key(chat) in primary_scope_keys:
+                    continue
                 await self._authoritative_repo.upsert_chat(chat)
+                primary_ids.add(chat.id)
+                primary_scope_keys.add(self._chat_scope_key(chat))
             self._import_complete = True
 
         await self._maybe_check_parity()
