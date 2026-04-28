@@ -500,6 +500,7 @@ class ProviderManager:
         else:
             self._file_mtimes.pop(str(path), None)
 
+    # pylint: disable=too-many-statements
     def _refresh_if_stale(self):
         """Reload providers whose files changed on disk since last snapshot."""
         changed_builtin: list[str] = []
@@ -533,7 +534,10 @@ class ProviderManager:
 
         for path_str in list(self._file_mtimes):
             custom_prefix = str(self.custom_path)
-            if path_str.startswith(custom_prefix) and path_str not in current_custom:
+            if (
+                path_str.startswith(custom_prefix)
+                and path_str not in current_custom
+            ):
                 removed_custom.append(path_str)
 
         active_changed = False

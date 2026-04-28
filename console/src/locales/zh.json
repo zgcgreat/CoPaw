@@ -58,7 +58,9 @@
     "instanceOverview": "概览",
     "instanceInstances": "实例列表",
     "instanceAllocations": "用户分配",
-    "instanceOperationLogs": "操作日志"
+    "instanceOperationLogs": "操作日志",
+    "harness": "Harness Engineering",
+    "continuousIteration": "持续治理"
   },
   "cases": {
     "title": "案例管理",
@@ -1041,6 +1043,9 @@
     "memorySummaryTitle": "长期记忆配置",
     "memorySummaryEnabled": "启动记忆总结",
     "memorySummaryEnabledTooltip": "在上下文压缩时自动生成并保存记忆总结",
+    "dreamCron": "梦境优化",
+    "dreamCronTooltip": "定时优化长期记忆的 Cron 表达式（留空禁用），默认每天 23:00 执行",
+    "dreamCronPlaceholder": "0 23 * * *",
     "forceMemorySearch": "强制记忆搜索(beta)",
     "forceMemorySearchTooltip": "每轮对话都强制触发记忆搜索。每次 query 进来都会调用记忆，让 CoPaw 更懂你，但会增加 token 消耗。注意：强制记忆搜索会破坏 KV Cache，造成缓存命中率降低，请谨慎开启。",
     "forceMaxResults": "强制搜索最大结果数",
@@ -1529,5 +1534,88 @@
     "filterByAction": "筛选操作类型",
     "filterByTargetType": "筛选目标类型",
     "searchTargetId": "搜索目标 ID"
+  },
+  "dreamLogs": {
+    "title": "梦境优化记录",
+    "triggerNow": "立即执行",
+    "triggerType": "触发方式",
+    "trigger": {
+      "cron": "定时触发",
+      "manual": "手动触发"
+    },
+    "status": "状态",
+    "statusValue": {
+      "success": "成功",
+      "failed": "失败",
+      "rollback": "已回滚"
+    },
+    "filesOptimized": "优化文件",
+    "runTime": "运行时间",
+    "duration": "耗时",
+    "modelUsed": "使用模型",
+    "summary": "优化摘要",
+    "stats": {
+      "title": "梦境优化统计",
+      "totalExecutions": "总执行次数",
+      "successRate": "成功率",
+      "spaceSaved": "累计节省空间",
+      "filesChanged": "累计变动文件",
+      "avgDuration": "平均耗时",
+      "lastOptimization": "上次优化时间"
+    },
+    "tabRecords": "优化记录",
+    "tabBackups": "备份文件",
+    "backup": {
+      "title": "备份文件列表",
+      "filename": "备份文件名",
+      "originalFile": "原始文件",
+      "recordId": "记录ID",
+      "timestamp": "备份时间",
+      "size": "文件大小",
+      "createdAt": "创建时间",
+      "totalFiles": "备份文件总数",
+      "totalSize": "总大小",
+      "deleteAll": "删除全部备份",
+      "deleteConfirm": "确定要删除此备份文件吗？",
+      "deleteAllConfirm": "确认删除全部备份",
+      "deleteAllMessage": "此操作将删除所有备份文件，删除后无法恢复。确定要继续吗？",
+      "deleteSuccess": "删除成功",
+      "deleteFailed": "删除失败",
+      "noFiles": "暂无备份文件",
+      "previewTitle": "文件预览",
+      "previewFailed": "获取文件内容失败"
+    },
+    "file": {
+      "filename": "文件名",
+      "sizeBefore": "优化前",
+      "sizeAfter": "优化后",
+      "sizeSaved": "节省",
+      "linesRemoved": "删除行数"
+    },
+    "diff": {
+      "title": "文件对比",
+      "before": "优化前",
+      "after": "优化后",
+      "noChanges": "无变化"
+    },
+    "rollback": {
+      "confirm": "确认回滚？",
+      "confirmMessage": "确定要回滚选中的文件吗？此操作将恢复优化前的内容。",
+      "confirmAllMessage": "确定要回滚全部文件吗？此操作将恢复优化前的内容。",
+      "success": "回滚成功",
+      "failed": "回滚失败",
+      "single": "回滚此文件",
+      "all": "回滚全部"
+    },
+    "viewDiff": "查看对比",
+    "noRecords": "暂无记录",
+    "firstRecord": "首次执行梦境优化后将在此显示记录",
+    "filter": {
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "status": "状态筛选",
+      "trigger": "触发方式",
+      "clear": "清除筛选"
+    }
   }
 }

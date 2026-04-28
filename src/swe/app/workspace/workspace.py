@@ -142,6 +142,20 @@ class Workspace:
         if self.runner is not None:
             self.runner._manager = manager  # pylint: disable=protected-access
 
+    def _get_user_timezone(self) -> str:
+        """Get user timezone from config.
+
+        Returns:
+            User timezone string (e.g., "Asia/Shanghai") or "UTC" as fallback.
+        """
+        from ...config.utils import load_config
+
+        try:
+            config = load_config()
+            return config.user_timezone or "UTC"
+        except Exception:
+            return "UTC"
+
     def _get_cron_coordination_config(self) -> "CoordinationConfig":
         """Get coordination config from environment-backed constants.
 
@@ -291,7 +305,7 @@ class Workspace:
                     "channel_manager": ws._service_manager.services.get(
                         "channel_manager",
                     ),
-                    "timezone": "UTC",
+                    "timezone": ws._get_user_timezone(),
                     "agent_id": ws.agent_id,
                     "tenant_id": ws.tenant_id,
                     "coordination_config": ws._get_cron_coordination_config(),

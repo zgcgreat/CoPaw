@@ -579,6 +579,36 @@ def get_heartbeat_config(
     return hb if hb is not None else HeartbeatConfig()
 
 
+def get_dream_cron(
+    agent_id: Optional[str] = None,
+    *,
+    tenant_id: str | None = None,
+) -> str:
+    """Return dream-based memory optimization cron expression for the agent.
+
+    Args:
+        agent_id: Agent ID to load config from. If None, returns empty string.
+        tenant_id: Optional tenant scope for agent config lookup.
+
+    Returns:
+        str: Cron expression for dream job, or empty string if disabled.
+    """
+    if agent_id is not None:
+        try:
+            agent_config = load_agent_config(
+                agent_id,
+                tenant_id=tenant_id,
+            )
+            return getattr(
+                agent_config.running.memory_summary,
+                "dream_cron",
+                "",
+            )
+        except Exception:
+            return ""
+    return ""
+
+
 def update_last_dispatch(
     channel: str,
     user_id: str,

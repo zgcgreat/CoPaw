@@ -378,6 +378,14 @@ class MemorySummaryConfig(BaseModel):
         ),
     )
 
+    dream_cron: str = Field(
+        default="",
+        description=(
+            "Cron expression for dream-based memory optimization job "
+            "(empty string to disable). Default: disabled (empty string)."
+        ),
+    )
+
 
 class SuggestionConfig(BaseModel):
     """猜你想问功能配置 - 在模型回答后异步生成后续问题建议."""

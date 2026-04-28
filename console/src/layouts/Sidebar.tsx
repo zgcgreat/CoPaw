@@ -44,6 +44,7 @@ import {
   SparkDevicesLine,
   SparkAdvancedMonitoringLine,
   SparkAuditLogLine,
+  SparkRefreshLine,
 } from "@agentscope-ai/icons";
 import { clearAuthToken } from "../api/config";
 import { authApi } from "../api/modules/auth";
@@ -309,6 +310,12 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       path: "/instance/operation-logs",
       label: t("nav.instanceOperationLogs", "Operation Logs"),
     },
+    {
+      key: "continuous-iteration",
+      icon: <SparkRefreshLine size={18} />,
+      path: "/continuous-iteration",
+      label: t("nav.continuousIteration", "持续迭代"),
+    },
   ];
 
   // ── Menu items ────────────────────────────────────────────────────────────
@@ -455,6 +462,17 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
           key: "analytics-traces",
           label: collapsed ? null : t("nav.analyticsTraces", "Traces"),
           icon: <SparkFileTxtLine size={16} />,
+        },
+      ],
+    },
+    {
+      key: "harness-group",
+      label: collapsed ? null : t("nav.harness", "Harness"),
+      children: [
+        {
+          key: "continuous-iteration",
+          label: collapsed ? null : t("nav.continuousIteration", "持续迭代"),
+          icon: <SparkRefreshLine size={16} />,
         },
       ],
     },

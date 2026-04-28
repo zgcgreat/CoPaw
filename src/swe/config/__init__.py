@@ -17,6 +17,7 @@ _EXPORTS = {
     "ToolGuardRuleConfig": (".config", "ToolGuardRuleConfig"),
     "get_available_channels": (".utils", "get_available_channels"),
     "get_config_path": (".utils", "get_config_path"),
+    "get_dream_cron": (".utils", "get_dream_cron"),
     "get_heartbeat_config": (".utils", "get_heartbeat_config"),
     "get_heartbeat_query_path": (".utils", "get_heartbeat_query_path"),
     "get_playwright_chromium_executable_path": (

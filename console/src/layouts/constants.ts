@@ -17,6 +17,7 @@ export const DEFAULT_OPEN_KEYS = [
   "settings-group",
   "analytics-group",
   "instance-group",
+  "harness-group",
 ];
 
 export const KEY_TO_PATH: Record<string, string> = {
@@ -49,6 +50,7 @@ export const KEY_TO_PATH: Record<string, string> = {
   "instance-instances": "/instance/instances",
   "instance-allocations": "/instance/allocations",
   "instance-operation-logs": "/instance/operation-logs",
+  "continuous-iteration": "/continuous-iteration",
 };
 
 export const KEY_TO_LABEL: Record<string, string> = {
@@ -77,6 +79,7 @@ export const KEY_TO_LABEL: Record<string, string> = {
   "instance-instances": "nav.instanceInstances",
   "instance-allocations": "nav.instanceAllocations",
   "instance-operation-logs": "nav.instanceOperationLogs",
+  "continuous-iteration": "nav.continuousIteration",
 };
 
 // ── URL helpers ───────────────────────────────────────────────────────────
