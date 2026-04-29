@@ -8,6 +8,8 @@ dependencies = [
     "uvicorn>=0.23.0",
     "click>=8.0.0",
     "pyyaml>=6.0",
+    "aiomysql>=0.2.0",
+    "pydantic>=2.0.0",
 ]
 
 [tool.setuptools.dynamic]
