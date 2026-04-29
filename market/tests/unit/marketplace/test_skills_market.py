@@ -82,9 +82,7 @@ def test_unpublish_skill_returns_204(tmp_path):
         skill_json={},
         skill_md="",
     )
-    item = asyncio.get_event_loop().run_until_complete(
-        svc.publish_skill("src_a", req),
-    )
+    item = asyncio.run(svc.publish_skill("src_a", req))
     client = TestClient(app)
     resp = client.delete(
         f"/api/marketplace/skills/{item.item_id}",
@@ -126,9 +124,7 @@ def test_distribute_skill_returns_200(tmp_path):
         skill_json={},
         skill_md="",
     )
-    item = asyncio.get_event_loop().run_until_complete(
-        svc.publish_skill("src_a", req),
-    )
+    item = asyncio.run(svc.publish_skill("src_a", req))
     svc.db.fetch_all = AsyncMock(
         return_value=[
             {"tenant_id": "user1", "tenant_name": "User One", "bbk_id": "200"},
@@ -147,3 +143,22 @@ def test_distribute_skill_returns_200(tmp_path):
     )
     assert resp.status_code == 200
     assert resp.json()["distributed_count"] == 1
+
+
+def test_publish_skill_missing_source_id_returns_400(tmp_path):
+    app = _make_app(tmp_path)
+    client = TestClient(app)
+    payload = {
+        "name": "skill_x",
+        "description": "",
+        "creator_id": "u1",
+        "creator_name": "",
+        "skill_json": {},
+        "skill_md": "",
+    }
+    resp = client.post(
+        "/api/marketplace/skills",
+        json=payload,
+        headers={"X-Manager": "true"},
+    )
+    assert resp.status_code == 400
