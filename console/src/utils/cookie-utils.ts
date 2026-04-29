@@ -1,6 +1,10 @@
-export function getTargetCookie(cookieName: string) {
-  return document.cookie
-    .split("; ")
-    .find((item) => item.startsWith(cookieName + "="))
-    ?.split("=")[1];
+export function getTargetCookie(name: string): string | null {
+  const cookies = document.cookie.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [key, value] = cookie.split("=");
+    if (key === name) {
+      return value ?? null;
+    }
+  }
+  return null;
 }

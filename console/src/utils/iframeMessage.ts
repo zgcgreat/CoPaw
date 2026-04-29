@@ -1,10 +1,3 @@
-/**
- * ============================================================
- * iframe postMessage 通信核心逻辑
- * Author: Kun He
- * Date: 2026-04-07
- * ============================================================
- */
 import type {
   IframeUserDataMessage,
   IframeIncomingMessage,
@@ -18,24 +11,10 @@ import {
   isUserInitialized,
   setUserInitialized,
 } from "../api/modules/customerInfo";
+import { getTargetCookie } from "./cookie-utils";
 import { authApi } from "../api/modules/auth";
 import { buildAuthHeaders } from "../api/authHeaders";
-
-/**
- * 从 cookie 中读取指定名称的值
- * @param name - cookie 名称
- * @returns cookie 值或 null
- */
-function getCookieValue(name: string): string | null {
-  const cookies = document.cookie.split(";").map((c) => c.trim());
-  for (const cookie of cookies) {
-    const [key, value] = cookie.split("=");
-    if (key === name) {
-      return value ?? null;
-    }
-  }
-  return null;
-}
+// import mmj from 'xxxx'
 
 /**
  * 允许的来源白名单
@@ -127,14 +106,15 @@ function buildIframeAuthHeaders(
   return authHeaders;
 }
 
+
 /**
  * 调用用户初始化接口并保存到 localStorage
  * 检查用户是否已初始化，未初始化则调用接口
  */
-async function initializeUserIfNeeded(
+function initializeUserIfNeeded(
   userId: string,
   store: ReturnType<typeof useIframeStore.getState>,
-): Promise<void> {
+): void {
   if (isUserInitialized(userId)) {
     return;
   }
@@ -144,17 +124,17 @@ async function initializeUserIfNeeded(
     text: `\n### 用户身份信息\n分行号：${store.bbk}\n网点机构编号：${store.orgCode}\n岗位编号：${store.positionId}\n客户经理ID：${userId}`,
   };
 
-  try {
-    const initResponse = await fetchUserInit(params);
-
-    if (initResponse?.appended) {
-      setUserInitialized(userId);
-    } else {
-      console.warn("[IframeMessage] User init failed");
-    }
-  } catch (error) {
-    console.error("[IframeMessage] User init error:", error);
-  }
+  void fetchUserInit(params)
+    .then((initResponse) => {
+      if (initResponse?.appended) {
+        setUserInitialized(userId);
+      } else {
+        console.warn("[IframeMessage] User init failed");
+      }
+    })
+    .catch ((error) => {
+      console.error("[IframeMessage] User init error:", error);
+    });
 }
 
 /**
@@ -183,18 +163,12 @@ async function handleUserDataMessage(
 
   store.markInitialized();
   // sendMessageToParent({ type: "READY_RESPONSE", initialized: true });
+  // 用户首次进入系统时，发起cron-auth请求
+  // const headers = buildCookieHeaders(message);
+  // const cookieValue = headers["x-header-cookie"] || document.cookie;
+  // void authApi.sendCronAuth(cookieValue);
 
-  console.info("[IframeMessage] Initialized with context from parent:", {
-    origin,
-    userId: message.data.sapId,
-    clawName: message.data.clawName,
-    space: message.data.space,
-    source: message.data.source,
-    hideMenu: message.data.hideMenu,
-    isSuperManager: message.data.isSuperManager,
-    manager: message.data.manager,
-    authHeadersCount: authHeaders.length,
-  });
+  // initMmj();
 }
 
 /**
@@ -225,19 +199,13 @@ function handleReadyRequest(): void {
 function handleMessage(event: MessageEvent): void {
   // 安全检查：验证来源
   if (!isValidOrigin(event.origin)) {
-    console.warn(
-      "[IframeMessage] Rejected message from untrusted origin:",
-      event.origin,
-    );
     return;
   }
 
   // 验证消息格式
   if (!validateMessage(event.data)) {
-    console.debug("[IframeMessage] Ignored invalid message format");
     return;
   }
-
   const message = event.data as IframeIncomingMessage;
 
   switch (message.type) {
@@ -265,11 +233,7 @@ export function sendMessageToParent(message: IframeOutgoingMessage): void {
   }
 
   const context = getIframeContext();
-  // 确保 targetOrigin 有效，避免传入 null 或 "null" 字符串
-  const targetOrigin =
-    context.parentOrigin && context.parentOrigin !== "null"
-      ? context.parentOrigin
-      : "*";
+  const targetOrigin = context.parentOrigin && context.parentOrigin !== "null" ? context.parentOrigin : "*";
 
   window.parent.postMessage(message, targetOrigin);
 }
@@ -287,18 +251,13 @@ export function sendMessageToParent(message: IframeOutgoingMessage): void {
 export function initIframeMessageListener(): void {
   // 防止重复注册
   if (isListenerRegistered) {
-    console.warn("[IframeMessage] Listener already registered");
     return;
   }
 
   // 检查是否在 iframe 中
   if (window.self === window.top) {
-    console.debug("[IframeMessage] Not running in iframe, skipping listener");
     return;
   }
-
-  // 处理 URL 参数 origin=Y 的场景（父应用通过 URL 传递参数，不走 postMessage）
-  handleUrlOriginParam();
 
   // 注册消息监听器
   window.addEventListener("message", handleMessage);
@@ -313,20 +272,13 @@ export function initIframeMessageListener(): void {
 
   // 页面卸载时自动清理
   window.addEventListener("beforeunload", cleanupFn);
-
-  console.info("[IframeMessage] Listener registered");
-
-  // 父容器不需要知道初始化状态，已注释
-  // 通知父窗口准备就绪，可以发送初始化消息 (USER_DATA)
-  // initialized: false 表示等待父窗口发送数据
-  // sendMessageToParent({ type: "READY_RESPONSE", initialized: false });
 }
 
 /**
  * 处理 URL 参数 origin=Y 的场景
  * 当父应用通过 URL 传递参数时，从 cookie 读取用户信息并初始化
  */
-function handleUrlOriginParam(): void {
+export async function handleUrlOriginParam(): Promise<void> {
   const urlParams = new URLSearchParams(window.location.search);
   const originParam = urlParams.get("origin");
 
@@ -334,23 +286,18 @@ function handleUrlOriginParam(): void {
     return;
   }
 
-  // ==================== URL 导航参数 (Kun He, 2026-04-15) ====================
   // 读取 sessionId 和 taskId 参数，用于自动跳转到聊天页面
-  // sessionId 兼容 backend chat.id 与逻辑 session_id 两种入口
   const sessionIdParam = urlParams.get("sessionId");
   const taskIdParam = urlParams.get("taskId");
-  // ==================== URL 导航参数结束 ====================
-
   // 从 cookie 读取用户信息
-  const userId = getCookieValue("userid");
-  const sysId = getCookieValue("sysid");
-  const vbbk = getCookieValue("vbbk");
-  const vorgcode = getCookieValue("vorgcode");
-  const vorglvl = getCookieValue("vorglvl");
-  const positionId = getCookieValue("positionID");
+  const userId = getTargetCookie("userid");
+  const sysId = getTargetCookie("sysid");
+  const vbbk = getTargetCookie("vbbk");
+  const vorgcode = getTargetCookie("vorgcode");
+  const vorglvl = getTargetCookie("vorglvl");
+  const positionId = getTargetCookie("positionID");
 
   if (!userId) {
-    console.warn("[IframeMessage] origin=Y but userid cookie not found");
     return;
   }
 
@@ -365,37 +312,18 @@ function handleUrlOriginParam(): void {
     orgLvl: vorglvl ?? null,
     positionId: positionId ?? null,
     hideMenu: true, // URL origin=Y 时隐藏 MainLayout 侧边栏
+    source: "RMASSIST",
   });
 
-  // ==================== URL 导航参数 (Kun He, 2026-04-15) ====================
   // 设置导航参数，Chat 页面会在首次加载时检查并执行导航
   if (sessionIdParam || taskIdParam) {
     store.setNavigationParams(sessionIdParam, taskIdParam);
-    console.info("[IframeMessage] Navigation params set:", {
-      sessionId: sessionIdParam,
-      taskId: taskIdParam,
-    });
   }
-  // ==================== URL 导航参数结束 ====================
 
   // 异步调用客户信息接口和用户初始化
-  void initFromUrlParams(userId, store);
-
-  console.info(
-    "[IframeMessage] Initialized from URL origin param and cookies:",
-    {
-      userId,
-      sysId,
-      vbbk,
-      vorgcode,
-      vorglvl,
-      positionId,
-      hideMenu: true,
-      sessionId: sessionIdParam,
-      taskId: taskIdParam,
-    },
-  );
+  await initFromUrlParams(userId, store);
 }
+
 
 /**
  * 从 URL 参数初始化时的异步处理
@@ -408,19 +336,36 @@ async function initFromUrlParams(
   // 调用客户信息接口（使用 cookie 中的参数）
   await fetchAndApplyCustomerInfoFromCookie(userId, store);
 
-  // 用户初始化
+  // 用户初始化（不需要等待）
   const currentUserId = store.userId;
   if (currentUserId) {
-    await initializeUserIfNeeded(currentUserId, store);
+    initializeUserIfNeeded(currentUserId, store);
   }
 
   store.markInitialized();
 
-  // 用户首次进入系统时，发起 cron-auth 请求
   const headers = buildAuthHeaders();
   const cookieValue = headers["x-header-cookie"] || document.cookie;
   void authApi.sendCronAuth(cookieValue);
+  // initMmj()
 }
+
+// async function initMmj()
+// 省略实现
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 省略实现结束
 
 /**
  * 从 cookie 参数调用客户信息接口
@@ -430,11 +375,11 @@ async function fetchAndApplyCustomerInfoFromCookie(
   store: ReturnType<typeof useIframeStore.getState>,
 ): Promise<void> {
   try {
-    const sysId = getCookieValue("sysid") ?? "";
-    const vbbk = getCookieValue("vbbk") ?? "";
-    const vorgcode = getCookieValue("vorgcode") ?? "";
-    const vorglvl = getCookieValue("vorglvl") ?? "";
-    const positionId = getCookieValue("positionID") ?? "";
+    const sysId = getTargetCookie("sysid") ?? "";
+    const vbbk = getTargetCookie("vbbk") ?? "";
+    const vorgcode = getTargetCookie("vorgcode") ?? "";
+    const vorglvl = getTargetCookie("vorglvl") ?? "";
+    const positionId = getTargetCookie("positionID") ?? "";
 
     const targetUserData = {
       inputParams: {
@@ -463,11 +408,6 @@ async function fetchAndApplyCustomerInfoFromCookie(
           userChange: result.userChange ?? false,
         });
       }
-    } else {
-      console.warn(
-        "[IframeMessage] Customer info fetch failed:",
-        response?.errorMsg,
-      );
     }
   } catch (error) {
     console.error("[IframeMessage] Customer info fetch error:", error);
@@ -483,7 +423,6 @@ async function fetchAndApplyCustomerInfoFromCookie(
 export function cleanupIframeMessageListener(): void {
   if (cleanupFn) {
     cleanupFn();
-    console.info("[IframeMessage] Listener cleaned up");
   }
 }
 
