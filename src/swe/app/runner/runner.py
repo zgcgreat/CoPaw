@@ -34,7 +34,7 @@ from .utils import build_env_context
 from ..channels.schema import DEFAULT_CHANNEL
 from ...agents.react_agent import SWEAgent
 from ...security.tool_guard.models import TOOL_GUARD_DENIED_MARK
-from ...config.config import MCPClientConfig, MCPConfig, load_agent_config
+from ...config.config import MCPClientConfig, MCPConfig, load_agent_config, SuggestionMode
 from ...constant import (
     QUERY_CLEANUP_TIMEOUT,
     QUERY_TIMEOUT_SECONDS,
@@ -891,45 +891,54 @@ class AgentRunner(Runner):
 
             await _safe_cleanup()
 
-            # 异步生成猜你想问建议（如果启用）
-            logger.debug(
-                "Suggestions check: enabled=%s, agent=%s, query=%s",
-                agent_config.running.suggestions.enabled,
-                agent is not None,
-                query[:50] if query else None,
-            )
+            # === 可插拔式 Q&A 内容提取钩子 ===
             if (
                 agent_config.running.suggestions.enabled
-                and not _was_cancelled
-                and agent is not None
-                and query
-                and chat
-                is not None  # 确保 chat 存在，使用 chat.id 作为 suggestions 存储键
+                and agent_config.running.suggestions.mode
+                == SuggestionMode.QA_EXTRACTION_ONLY
+                and chat is not None
             ):
                 # 提取助手响应文本
                 assistant_response = _extract_assistant_response(agent)
-                logger.debug(
-                    "Extracted assistant response: %s chars",
-                    len(assistant_response) if assistant_response else 0,
-                )
-                if assistant_response:
-                    # 使用 chat.id (UUID) 作为 session_id，与前端轮询时使用的 session_id 保持一致
-                    logger.info(
-                        "Starting suggestions generation task for chat %s (session_id=%s)",
-                        chat.id,
-                        session_id,
-                    )
-                    asyncio.create_task(
-                        _generate_and_store_suggestions(
-                            session_id=chat.id,  # 使用 chat.id (UUID)
-                            user_message=query,
-                            assistant_response=assistant_response,
-                            config=agent_config.running.suggestions,
+                user_message = query  # 用户原始问题
+
+                if assistant_response and user_message:
+                    from ..suggestions.service import extract_key_content
+                    from ..suggestions.store import store_qa_content
+
+                    # 提取关键内容
+                    config = agent_config.running.suggestions
+                    extracted_user = user_message[: config.user_message_max_length]
+                    extracted_assistant = extract_key_content(
+                        assistant_response,
+                        max_length=min(
+                            config.qa_content_total_max_length
+                            - len(extracted_user),
+                            config.assistant_response_max_length,
                         ),
+                    )
+
+                    # 存储 Q&A 内容（按 chat_id + user_message_hash）
+                    await store_qa_content(
+                        chat_id=chat.id,
+                        user_message=extracted_user,
+                        assistant_response=extracted_assistant,
+                        tenant_id=self.tenant_id,
+                        max_age_seconds=config.qa_content_max_age_seconds,
+                    )
+                    logger.info(
+                        "Stored Q&A content for suggestions: chat_id=%s, "
+                        "user_len=%d, assistant_len=%d",
+                        chat.id,
+                        len(extracted_user),
+                        len(extracted_assistant),
                     )
                 else:
                     logger.debug(
-                        "No assistant response to generate suggestions from",
+                        "No Q&A content to extract for suggestions: "
+                        "assistant_response=%s, user_message=%s",
+                        bool(assistant_response),
+                        bool(user_message),
                     )
 
     async def get_state_loaded(

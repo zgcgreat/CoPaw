@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from src.swe.app.runner.manager import ChatManager
 from src.swe.app.runner.models import ChatSpec, ChatsFile
+from src.swe.app.runner.repo import BaseChatRepository
 
 
-class _InMemoryChatRepo:
+class _InMemoryChatRepo(BaseChatRepository):
     def __init__(self) -> None:
         self._state = ChatsFile(version=1, chats=[])
         self.path = "<memory>"
@@ -16,15 +17,15 @@ class _InMemoryChatRepo:
     async def save(self, chats_file: ChatsFile) -> None:
         self._state = chats_file.model_copy(deep=True)
 
-    async def get_chat(self, chat_id: str):
+    async def get_chat(self, chat_id: str) -> ChatSpec | None:
         return await ChatsFileRepoAdapter(self).get_chat(chat_id)
 
     async def get_chat_by_id(
         self,
         session_id: str,
         user_id: str,
-        channel: str,
-    ):
+        channel: str = "console",
+    ) -> ChatSpec | None:
         return await ChatsFileRepoAdapter(self).get_chat_by_id(
             session_id,
             user_id,
@@ -34,7 +35,7 @@ class _InMemoryChatRepo:
     async def upsert_chat(self, spec: ChatSpec) -> None:
         await ChatsFileRepoAdapter(self).upsert_chat(spec)
 
-    async def filter_chats(self, user_id=None, channel=None):
+    async def filter_chats(self, user_id=None, channel=None) -> list[ChatSpec]:
         return await ChatsFileRepoAdapter(self).filter_chats(
             user_id=user_id,
             channel=channel,

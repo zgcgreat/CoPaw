@@ -30,6 +30,7 @@ from ..backup.shell_router import router as shell_backup_router
 from .zhaohu import zhaohu_router
 from ..greeting import greeting_router
 from ..featured_case import featured_case_router
+from .user_info import router as user_info_router
 
 router = APIRouter()
 
@@ -61,6 +62,7 @@ router.include_router(shell_backup_router)
 router.include_router(zhaohu_router)
 router.include_router(greeting_router)
 router.include_router(featured_case_router)
+router.include_router(user_info_router)
 
 
 def create_agent_scoped_router() -> APIRouter:

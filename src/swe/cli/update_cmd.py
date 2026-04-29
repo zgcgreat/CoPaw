@@ -582,8 +582,7 @@ def run_update_worker(plan_path: str | Path) -> int:
     else:
         click.echo(f"[swe] Update failed with exit code {return_code}.")
         click.echo(
-            "[swe] Please fix the error above and run "
-            "`swe update` again.",
+            "[swe] Please fix the error above and run " "`swe update` again.",
         )
 
     return return_code

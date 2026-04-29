@@ -184,8 +184,8 @@ def _build_spec_from_cli(
         meta["creator_user_id"] = creator_user
     runtime = {
         "max_concurrency": 1,
-        "timeout_seconds": 120,
-        "misfire_grace_seconds": 60,
+        "timeout_seconds": 7200,
+        "misfire_grace_seconds": 300,
     }
     if task_type == "text":
         if not (text and text.strip()):

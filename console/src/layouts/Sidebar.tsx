@@ -286,6 +286,12 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       label: t("nav.analyticsTraces", "Traces"),
     },
     {
+      key: "analytics-business-overview",
+      icon: <SparkBarChartLine size={18} />,
+      path: "/analytics/business-overview",
+      label: t("nav.analyticsBusinessOverview", "运营看板"),
+    },
+    {
       key: "instance-overview",
       icon: <SparkAdvancedMonitoringLine size={18} />,
       path: "/instance/overview",
@@ -431,9 +437,16 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       key: "analytics-group",
       label: collapsed ? null : t("nav.analytics", "Analytics"),
       children: [
+        // {
+        //   key: "analytics-overview",
+        //   label: collapsed ? null : t("nav.analyticsOverview", "Overview"),
+        //   icon: <SparkBarChartLine size={16} />,
+        // },
         {
-          key: "analytics-overview",
-          label: collapsed ? null : t("nav.analyticsOverview", "Overview"),
+          key: "analytics-business-overview",
+          label: collapsed
+            ? null
+            : t("nav.analyticsBusinessOverview", "运营看板"),
           icon: <SparkBarChartLine size={16} />,
         },
         {

@@ -26,9 +26,10 @@ ClusterNode: Any = None
 REDIS_AVAILABLE = False
 try:
     import redis.asyncio as _redis_lib
-    from redis.asyncio.cluster import ClusterNode
+    from redis.asyncio.cluster import ClusterNode as _ClusterNode
 
     redis_lib = _redis_lib
+    ClusterNode = _ClusterNode
     REDIS_AVAILABLE = True
 except ImportError:
     pass
@@ -250,7 +251,8 @@ class AgentLease:
 
                     # Extend the lease
                     await self._redis.expire(
-                        self._key, self._config.lease_ttl_seconds,
+                        self._key,
+                        self._config.lease_ttl_seconds,
                     )
                     self._consecutive_failures = 0
                     logger.debug(
@@ -386,7 +388,11 @@ class DefinitionLock:
             current = await self._redis.get(self._key)
             if not current:
                 return
-            owner = current.decode() if isinstance(current, bytes) else str(current)
+            owner = (
+                current.decode()
+                if isinstance(current, bytes)
+                else str(current)
+            )
             if owner == self._token:
                 await self._redis.delete(self._key)
         except Exception as e:
@@ -639,7 +645,9 @@ class CronCoordination:
             )
             return False
 
-        owner = current.decode() if isinstance(current, bytes) else str(current)
+        owner = (
+            current.decode() if isinstance(current, bytes) else str(current)
+        )
         if owner != self._instance_id:
             logger.info(
                 "Scheduler preflight rejected: lease owned by another instance "
@@ -839,7 +847,8 @@ class CronCoordination:
         url_params = self._parse_redis_url()
 
         logger.debug(
-            "Connecting to Redis Cluster with %d nodes", len(startup_nodes),
+            "Connecting to Redis Cluster with %d nodes",
+            len(startup_nodes),
         )
 
         cluster = RedisCluster(
@@ -869,7 +878,9 @@ class CronCoordination:
             # In cluster mode, connect to the first startup node for pub/sub
             startup_nodes = self._build_cluster_startup_nodes()
             if not startup_nodes:
-                raise RedisNotAvailableError("No cluster nodes for pub/sub client")
+                raise RedisNotAvailableError(
+                    "No cluster nodes for pub/sub client",
+                )
 
             # Parse URL for auth
             url_params = self._parse_redis_url()
@@ -898,7 +909,10 @@ class CronCoordination:
 
         await self.deactivate()
 
-        if self._pubsub_client is not None and self._pubsub_client is not self._redis:
+        if (
+            self._pubsub_client is not None
+            and self._pubsub_client is not self._redis
+        ):
             try:
                 await self._pubsub_client.close()
             except Exception as e:  # pylint: disable=broad-except
@@ -977,7 +991,9 @@ class CronCoordination:
         """
         # Use _pubsub_client in cluster mode, _redis in standalone mode
         # RedisCluster doesn't have publish() method
-        client = self._pubsub_client if self._config.cluster_mode else self._redis
+        client = (
+            self._pubsub_client if self._config.cluster_mode else self._redis
+        )
         if client is None:
             return False
 
@@ -998,7 +1014,9 @@ class CronCoordination:
         if self._redis is None:
             raise RedisNotAvailableError("Not connected to Redis")
 
-        key = f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        key = (
+            f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        )
         raw = await self._redis.get(key)
         if raw is None:
             return 0
@@ -1011,7 +1029,9 @@ class CronCoordination:
         if self._redis is None:
             raise RedisNotAvailableError("Not connected to Redis")
 
-        key = f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        key = (
+            f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        )
         return int(await self._redis.incr(key))
 
     async def ensure_definition_version(self, version: int) -> int:
@@ -1019,7 +1039,9 @@ class CronCoordination:
         if self._redis is None:
             raise RedisNotAvailableError("Not connected to Redis")
 
-        key = f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        key = (
+            f"swe:cron:defver:{self._tenant_id or 'default'}:{self._agent_id}"
+        )
         script = """
 local current = redis.call('GET', KEYS[1])
 if (not current) or (tonumber(current) < tonumber(ARGV[1])) then
@@ -1183,7 +1205,9 @@ return tonumber(current)
                     continue
 
     def create_execution_lock(
-        self, job_id: str, timeout_seconds: int,
+        self,
+        job_id: str,
+        timeout_seconds: int,
     ) -> ExecutionLock:
         """Create a legacy execution lock for a specific job.
 

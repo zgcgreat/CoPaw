@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Regression tests for tenant-aware heartbeat config access."""
+
 # pylint: disable=protected-access
 from __future__ import annotations
 
@@ -14,6 +15,12 @@ from swe.app.crons.heartbeat import run_heartbeat_once
 from swe.app.crons.manager import CronManager
 from swe.config import config as config_module
 from swe.config import utils as config_utils
+from swe.config.llm_workload import (
+    LLM_WORKLOAD_CHAT,
+    LLM_WORKLOAD_CRON,
+    bind_llm_workload,
+    get_current_llm_workload,
+)
 
 
 @pytest.mark.asyncio
@@ -29,6 +36,7 @@ async def test_run_heartbeat_once_uses_longer_default_timeout(
     class FakeRunner:
         async def stream_query(self, request):
             observed["request"] = request
+            observed["workload"] = get_current_llm_workload()
             yield {"type": "message", "text": "pong"}
 
     class FakeChannelManager:
@@ -58,6 +66,8 @@ async def test_run_heartbeat_once_uses_longer_default_timeout(
     )
 
     assert observed["timeout"] == 7200
+    assert observed["workload"] == LLM_WORKLOAD_CRON
+    assert get_current_llm_workload() == LLM_WORKLOAD_CHAT
 
 
 def test_get_heartbeat_config_uses_tenant_scoped_agent_json(
@@ -205,6 +215,36 @@ async def test_cron_manager_update_heartbeat_uses_runtime_tenant(
         "_heartbeat",
         True,
     )
+
+
+@pytest.mark.asyncio
+async def test_cron_manager_heartbeat_callback_binds_cron_workload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, Any] = {}
+    manager = CronManager(
+        repo=object(),
+        runner=SimpleNamespace(workspace_dir=None, _workspace=None),
+        channel_manager=object(),
+        agent_id="default",
+        tenant_id="tenant-a",
+    )
+
+    async def fake_run_heartbeat_once(workspace_dir: Any) -> None:
+        del workspace_dir
+        observed["workload"] = get_current_llm_workload()
+
+    monkeypatch.setattr(
+        manager,
+        "_run_heartbeat_once",
+        fake_run_heartbeat_once,
+    )
+
+    with bind_llm_workload(LLM_WORKLOAD_CHAT):
+        await manager._heartbeat_callback()  # pylint: disable=protected-access
+        assert get_current_llm_workload() == LLM_WORKLOAD_CHAT
+
+    assert observed["workload"] == LLM_WORKLOAD_CRON
 
 
 @pytest.mark.asyncio

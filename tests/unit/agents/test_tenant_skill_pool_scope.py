@@ -50,9 +50,9 @@ def test_skill_pool_service_upload_uses_tenant_pool(tmp_path: Path) -> None:
     )
 
     assert result == {"success": True, "name": "shared"}
-    assert (
-        tenant_a_dir / "skill_pool" / "shared" / "SKILL.md"
-    ).read_text(encoding="utf-8").find("workspace tenant-a copy") != -1
+    assert (tenant_a_dir / "skill_pool" / "shared" / "SKILL.md").read_text(
+        encoding="utf-8",
+    ).find("workspace tenant-a copy") != -1
     assert not (tenant_b_dir / "skill_pool" / "shared").exists()
 
 
@@ -112,9 +112,9 @@ def test_skill_pool_service_download_reads_tenant_local_pool(
     )
 
     assert result["success"] is True
-    skill_text = (
-        workspace_dir / "skills" / "shared" / "SKILL.md"
-    ).read_text(encoding="utf-8")
+    skill_text = (workspace_dir / "skills" / "shared" / "SKILL.md").read_text(
+        encoding="utf-8",
+    )
     assert "tenant-a pool copy" in skill_text
     assert "tenant-b pool copy" not in skill_text
 
@@ -308,12 +308,12 @@ def test_initialize_agent_workspace_prefers_agent_language(
         SimpleNamespace(language="ru"),
     )
 
-    assert "Встроенный" not in (
-        workspace_dir / "AGENTS.md"
-    ).read_text(encoding="utf-8")
-    assert "Шаблон рабочей области" in (
-        workspace_dir / "AGENTS.md"
-    ).read_text(encoding="utf-8")
+    assert "Встроенный" not in (workspace_dir / "AGENTS.md").read_text(
+        encoding="utf-8",
+    )
+    assert "Шаблон рабочей области" in (workspace_dir / "AGENTS.md").read_text(
+        encoding="utf-8",
+    )
 
 
 def test_list_workspaces_reads_agent_names_from_tenant_config(
@@ -333,7 +333,9 @@ def test_list_workspaces_reads_agent_names_from_tenant_config(
         lambda path: SimpleNamespace(
             agents=SimpleNamespace(
                 profiles={
-                    "shared": SimpleNamespace(workspace_dir=str(workspace_dir)),
+                    "shared": SimpleNamespace(
+                        workspace_dir=str(workspace_dir),
+                    ),
                 },
             ),
         ),

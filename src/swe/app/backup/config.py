@@ -43,8 +43,12 @@ class ShellScriptConfig(BaseModel):
     用于 Shell 脚本模式的备份压缩/解压配置。
     """
 
-    compress_script_path: str = "/opt/deployments/app/src/scripts/backup/compress.sh"
-    decompress_script_path: str = "/opt/deployments/app/src/scripts/backup/decompress.sh"
+    compress_script_path: str = (
+        "/opt/deployments/app/src/scripts/backup/compress.sh"
+    )
+    decompress_script_path: str = (
+        "/opt/deployments/app/src/scripts/backup/decompress.sh"
+    )
     timeout_seconds: int = Field(default=600, ge=60, le=3600)
     working_dir: str = ""  # 空则使用 WORKING_DIR 常量
     secret_dir: str = ""  # 空则使用 SECRET_DIR 常量

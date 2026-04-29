@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button, Card, Table, Modal, Input } from "antd";
+import { Button, Card, Table, Modal, Input, Select } from "antd";
 import { Form } from "@agentscope-ai/design";
 import { PageHeader } from "@/components/PageHeader";
 import { useFeaturedCases } from "./components/hooks";
@@ -50,15 +50,15 @@ function FeaturedCasesPage() {
     setDrawerOpen(true);
   };
 
-  const handleDelete = (caseId: string) => {
+  const handleDelete = (id: number) => {
     Modal.confirm({
       title: "确认删除",
-      content: `确定要删除案例 "${caseId}" 吗？`,
+      content: `确定要删除该案例吗？`,
       okText: "删除",
       okType: "danger",
       cancelText: "取消",
       onOk: async () => {
-        await deleteCase(caseId);
+        await deleteCase(id);
         loadCases({
           bbk_id: bbkIdFilter,
           page: pagination.current,
@@ -77,7 +77,7 @@ function FeaturedCasesPage() {
     setSaving(true);
     try {
       if (editingCase) {
-        await updateCase(editingCase.case_id, values);
+        await updateCase(editingCase.id, values);
       } else {
         await createCase(values);
       }
@@ -120,24 +120,11 @@ function FeaturedCasesPage() {
       />
 
       <Card className={styles.tableCard}>
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="筛选 BBK ID"
-            allowClear
-            value={bbkIdFilter || ""}
-            onChange={(e) => {
-              setBbkIdFilter(e.target.value || undefined);
-              setPagination({ ...pagination, current: 1 });
-            }}
-            style={{ width: 200 }}
-          />
-        </div>
-
         <Table
           columns={columns}
           dataSource={cases}
           loading={loading}
-          rowKey="case_id"
+          rowKey="id"
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,

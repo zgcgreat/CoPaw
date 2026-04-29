@@ -437,7 +437,6 @@ class TraceManager:
         user_id: str = "",
         session_id: str = "",
         channel: str = "",
-        parent_span_id: Optional[str] = None,
         model_name: Optional[str] = None,
         input_tokens: Optional[int] = None,
         tool_name: Optional[str] = None,
@@ -456,7 +455,6 @@ class TraceManager:
             user_id: User identifier
             session_id: Session identifier
             channel: Channel identifier
-            parent_span_id: Optional parent span ID
             model_name: Optional model name
             input_tokens: Optional input token count
             tool_name: Optional tool name
@@ -473,12 +471,6 @@ class TraceManager:
 
         span_id = str(uuid.uuid4())
 
-        # Get parent from context if not provided
-        if parent_span_id is None:
-            ctx = get_current_trace()
-            if ctx and ctx.trace_id == trace_id:
-                parent_span_id = ctx.current_span_id
-
         # Sanitize tool input if configured
         if self.config.sanitize_output and tool_input:
             tool_input = sanitize_dict(
@@ -490,7 +482,6 @@ class TraceManager:
             span_id=span_id,
             trace_id=trace_id,
             source_id=source_id,
-            parent_span_id=parent_span_id,
             name=name,
             event_type=event_type,
             start_time=start_time or datetime.now(),
@@ -527,7 +518,6 @@ class TraceManager:
         input_tokens: Optional[int] = None,
         tool_output: Optional[str] = None,
         error: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
         span: Optional[Span] = None,
     ) -> None:
         """Update an existing span.
@@ -539,7 +529,6 @@ class TraceManager:
             input_tokens: Optional input token count (updates span if provided)
             tool_output: Optional tool output (will be sanitized)
             error: Optional error message
-            metadata: Optional metadata
             span: Optional span object (to avoid re-fetching)
         """
         if not self.enabled:
@@ -556,7 +545,6 @@ class TraceManager:
             input_tokens,
             tool_output,
             error,
-            metadata,
         )
         self._update_trace_totals(trace_id, span, output_tokens)
 
@@ -594,7 +582,6 @@ class TraceManager:
         input_tokens: Optional[int],
         tool_output: Optional[str],
         error: Optional[str],
-        metadata: Optional[dict[str, Any]],
     ) -> None:
         """Update span fields."""
         span.end_time = datetime.now()
@@ -610,7 +597,6 @@ class TraceManager:
             else tool_output
         )
         span.error = error
-        span.metadata = metadata
 
     def _update_trace_totals(
         self,

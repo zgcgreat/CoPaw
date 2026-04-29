@@ -89,6 +89,7 @@ class TestTraceOperations:
 
         trace = Trace(
             trace_id="trace-1",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -106,6 +107,7 @@ class TestTraceOperations:
 
         trace = Trace(
             trace_id="trace-1",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -124,6 +126,7 @@ class TestTraceOperations:
         now = datetime.now()
         mock_db.fetch_one.return_value = {
             "trace_id": "trace-1",
+            "source_id": "test-source",
             "user_id": "user-1",
             "session_id": "session-1",
             "channel": "console",
@@ -171,6 +174,7 @@ class TestSpanOperations:
         span = Span(
             span_id="span-1",
             trace_id="trace-1",
+            source_id="test-source",
             name="test_span",
             event_type=EventType.LLM_INPUT,
             start_time=datetime.now(),
@@ -189,6 +193,7 @@ class TestSpanOperations:
             Span(
                 span_id=f"span-{i}",
                 trace_id="trace-1",
+                source_id="test-source",
                 name=f"span_{i}",
                 event_type=EventType.LLM_INPUT,
                 start_time=datetime.now(),
@@ -208,6 +213,7 @@ class TestSpanOperations:
         span = Span(
             span_id="span-1",
             trace_id="trace-1",
+            source_id="test-source",
             name="test_span",
             event_type=EventType.LLM_INPUT,
             start_time=datetime.now(),
@@ -227,7 +233,7 @@ class TestSpanOperations:
             {
                 "span_id": "span-1",
                 "trace_id": "trace-1",
-                "parent_span_id": None,
+                "source_id": "test-source",
                 "name": "test_span",
                 "event_type": "llm_input",
                 "start_time": now,
@@ -244,7 +250,6 @@ class TestSpanOperations:
                 "tool_input": None,
                 "tool_output": None,
                 "error": None,
-                "metadata": None,
                 "mcp_server": None,
             },
         ]
@@ -304,7 +309,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        stats = await store.get_overview_stats()
+        stats = await store.get_overview_stats("test-source")
         assert stats is not None
         assert isinstance(stats, OverviewStats)
 
@@ -333,7 +338,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        users, total = await store.get_users()
+        users, total = await store.get_users("test-source")
         assert len(users) == 2
 
     @pytest.mark.asyncio
@@ -353,7 +358,11 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        users, total = await store.get_users(page=1, page_size=10)
+        users, total = await store.get_users(
+            "test-source",
+            page=1,
+            page_size=10,
+        )
         assert len(users) == 1
 
     @pytest.mark.asyncio
@@ -371,7 +380,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        stats = await store.get_user_stats("user-1")
+        stats = await store.get_user_stats("test-source", "user-1")
         assert stats is not None
 
     @pytest.mark.asyncio
@@ -381,12 +390,15 @@ class TestQueryOperations:
         mock_db.fetch_all.return_value = [
             {
                 "trace_id": "trace-1",
+                "source_id": "test-source",
                 "user_id": "user-1",
                 "session_id": "session-1",
                 "channel": "console",
                 "start_time": now,
                 "duration_ms": None,
                 "total_tokens": 0,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
                 "model_name": None,
                 "status": "running",
                 "skills_count": 0,
@@ -396,7 +408,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        traces, total = await store.get_traces()
+        traces, total = await store.get_traces("test-source")
         assert len(traces) == 1
 
     @pytest.mark.asyncio
@@ -406,12 +418,15 @@ class TestQueryOperations:
         mock_db.fetch_all.return_value = [
             {
                 "trace_id": "trace-1",
+                "source_id": "test-source",
                 "user_id": "user-1",
                 "session_id": "session-1",
                 "channel": "console",
                 "start_time": now,
                 "duration_ms": None,
                 "total_tokens": 0,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
                 "model_name": None,
                 "status": "running",
                 "skills_count": 0,
@@ -421,7 +436,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        traces, total = await store.get_traces(user_id="user-1")
+        traces, total = await store.get_traces("test-source", user_id="user-1")
         assert len(traces) == 1
 
     @pytest.mark.asyncio
@@ -431,12 +446,15 @@ class TestQueryOperations:
         mock_db.fetch_all.return_value = [
             {
                 "trace_id": "trace-1",
+                "source_id": "test-source",
                 "user_id": "user-1",
                 "session_id": "session-1",
                 "channel": "console",
                 "start_time": now,
                 "duration_ms": 100,
                 "total_tokens": 0,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
                 "model_name": None,
                 "status": "completed",
                 "skills_count": 0,
@@ -446,7 +464,10 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        traces, total = await store.get_traces(status=TraceStatus.COMPLETED)
+        traces, total = await store.get_traces(
+            "test-source",
+            status=TraceStatus.COMPLETED,
+        )
         assert len(traces) == 1
 
     @pytest.mark.asyncio
@@ -455,6 +476,7 @@ class TestQueryOperations:
         now = datetime.now()
         mock_db.fetch_one.return_value = {
             "trace_id": "trace-1",
+            "source_id": "test-source",
             "user_id": "user-1",
             "session_id": "session-1",
             "channel": "console",
@@ -498,7 +520,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        sessions, total = await store.get_sessions()
+        sessions, total = await store.get_sessions("test-source")
         assert len(sessions) == 1
 
     @pytest.mark.asyncio
@@ -507,6 +529,7 @@ class TestQueryOperations:
         mock_db.fetch_all.return_value = [
             {
                 "trace_id": "trace-1",
+                "source_id": "test-source",
                 "user_id": "user-1",
                 "session_id": "session-1",
                 "channel": "console",
@@ -522,7 +545,7 @@ class TestQueryOperations:
         store = TraceStore(config, mock_db)
         await store.initialize()
 
-        messages, total = await store.get_user_messages()
+        messages, total = await store.get_user_messages("test-source")
         assert len(messages) == 1
 
 

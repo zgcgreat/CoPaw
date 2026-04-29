@@ -308,17 +308,21 @@ MCP（模型上下文协议）允许智能体连接外部服务（如 Filesystem
 
 **LLM 重试与限流：**
 
-| 字段                    | 类型  | 默认值  | 说明                                                        |
-| ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| `llm_retry_enabled`     | bool  | `true`  | 是否对限流、超时、连接中断等瞬时 LLM API 错误自动重试       |
-| `llm_max_retries`       | int   | `3`     | 瞬时 LLM API 错误的最大重试次数（必须 ≥ 1）                 |
-| `llm_backoff_base`      | float | `1.0`   | 指数退避的基础等待时间（秒，必须 ≥ 0.1）                    |
-| `llm_backoff_cap`       | float | `10.0`  | 退避等待时间上限（秒，必须 ≥ 0.5，且 ≥ `llm_backoff_base`） |
-| `llm_max_concurrent`    | int   | `10`    | 最大并发 LLM 调用数（跨所有智能体共享）                     |
-| `llm_max_qpm`           | int   | `600`   | 每分钟最大请求数限制（QPM）。0 = 不限制                     |
-| `llm_rate_limit_pause`  | float | `5.0`   | 收到 429 限流响应时的全局暂停时间（秒）                     |
-| `llm_rate_limit_jitter` | float | `1.0`   | 限流暂停的随机抖动范围（秒），避免并发请求同时恢复          |
-| `llm_acquire_timeout`   | float | `300.0` | 等待获取限流槽的最大超时时间（秒）                          |
+| 字段                       | 类型          | 默认值  | 说明                                                                                             |
+| -------------------------- | ------------- | ------- | ------------------------------------------------------------------------------------------------ |
+| `llm_retry_enabled`        | bool          | `true`  | 是否对限流、超时、连接中断等瞬时 LLM API 错误自动重试                                            |
+| `llm_max_retries`          | int           | `3`     | 瞬时 LLM API 错误的最大重试次数（必须 ≥ 1）                                                      |
+| `llm_backoff_base`         | float         | `1.0`   | 指数退避的基础等待时间（秒，必须 ≥ 0.1）                                                         |
+| `llm_backoff_cap`          | float         | `10.0`  | 退避等待时间上限（秒，必须 ≥ 0.5，且 ≥ `llm_backoff_base`）                                      |
+| `llm_max_concurrent`       | int           | `10`    | 当前租户下当前 Agent 范围内，每类 workload 的默认并发 LLM 调用数                                 |
+| `llm_chat_max_concurrent`  | int \| null   | `null`  | Chat workload 的并发 LLM 调用数；未设置时使用 `llm_max_concurrent`                               |
+| `llm_cron_max_concurrent`  | int \| null   | `null`  | Cron 与 heartbeat workload 的并发 LLM 调用数；未设置时使用 `llm_max_concurrent`                  |
+| `llm_max_qpm`              | int           | `600`   | 每分钟最大请求数限制（QPM）。0 = 不限制；Chat 与 Cron 共享                                       |
+| `llm_rate_limit_pause`     | float         | `5.0`   | 当前 Agent 范围内收到 429 限流响应时的默认暂停时间（秒）                                         |
+| `llm_rate_limit_jitter`    | float         | `1.0`   | 限流暂停的随机抖动范围（秒），避免并发请求同时恢复                                               |
+| `llm_acquire_timeout`      | float         | `300.0` | 等待获取 workload 限流槽的默认最大超时时间（秒）；必须大于 `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
+| `llm_chat_acquire_timeout` | float \| null | `null`  | Chat workload 等待获取 LLM 并发槽的最大超时时间；未设置时使用 `llm_acquire_timeout`；设置时必须大于 `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
+| `llm_cron_acquire_timeout` | float \| null | `null`  | Cron 与 heartbeat workload 等待获取 LLM 并发槽的最大超时时间；未设置时使用 `llm_acquire_timeout`；设置时必须大于 `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
 
 **上下文管理：**
 

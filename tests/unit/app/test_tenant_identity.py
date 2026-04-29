@@ -8,26 +8,41 @@ import importlib.util
 import sys
 import types
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+from unittest.mock import Mock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, AsyncMock
 
-_CONTEXT_FILE = Path(__file__).parent.parent.parent.parent / "src" / "swe" / "config" / "context.py"
+# pylint: disable=protected-access
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+
+_CONTEXT_FILE = (
+    Path(__file__).parent.parent.parent.parent
+    / "src"
+    / "swe"
+    / "config"
+    / "context.py"
+)
 _ORIGINAL_CONTEXT_MODULE = sys.modules.get("swe.config.context")
 _context_spec = importlib.util.spec_from_file_location(
     "swe.config.context",
     _CONTEXT_FILE,
 )
+assert _context_spec is not None and _context_spec.loader is not None
 context_module = importlib.util.module_from_spec(_context_spec)
 sys.modules["swe.config.context"] = context_module
-assert _context_spec is not None and _context_spec.loader is not None
 _context_spec.loader.exec_module(context_module)
 
-_MIDDLEWARE_FILE = Path(__file__).parent.parent.parent.parent / "src" / "swe" / "app" / "middleware" / "tenant_identity.py"
+_MIDDLEWARE_FILE = (
+    Path(__file__).parent.parent.parent.parent
+    / "src"
+    / "swe"
+    / "app"
+    / "middleware"
+    / "tenant_identity.py"
+)
 _PACKAGE_PATH = str(_MIDDLEWARE_FILE.parent)
 if "swe.app.middleware" not in sys.modules:
     middleware_pkg = types.ModuleType("swe.app.middleware")
@@ -38,9 +53,9 @@ _middleware_spec = importlib.util.spec_from_file_location(
     "swe.app.middleware.tenant_identity",
     _MIDDLEWARE_FILE,
 )
+assert _middleware_spec is not None and _middleware_spec.loader is not None
 tenant_identity = importlib.util.module_from_spec(_middleware_spec)
 sys.modules["swe.app.middleware.tenant_identity"] = tenant_identity
-assert _middleware_spec is not None and _middleware_spec.loader is not None
 _middleware_spec.loader.exec_module(tenant_identity)
 
 if _ORIGINAL_CONTEXT_MODULE is None:
@@ -65,6 +80,10 @@ def build_test_app():
     def exempt_route():
         return {"version": "test"}
 
+    @app.get("/static/{user_id}/{filename}")
+    def static_route(user_id: str, filename: str):
+        return {"user_id": user_id, "filename": filename}
+
     return app
 
 
@@ -79,6 +98,13 @@ def test_exempt_route_still_works_without_tenant_header():
     client = TestClient(build_test_app(), raise_server_exceptions=False)
     response = client.get("/api/version")
     assert response.status_code == 200
+
+
+def test_static_route_works_without_tenant_header():
+    client = TestClient(build_test_app(), raise_server_exceptions=False)
+    response = client.get("/static/alice/demo.txt")
+    assert response.status_code == 200
+    assert response.json() == {"user_id": "alice", "filename": "demo.txt"}
 
 
 def test_invalid_tenant_id_returns_400():
@@ -208,7 +234,9 @@ class TestTenantContextHelpers:
     @pytest.mark.skip(reason="Requires full app dependencies")
     def test_get_tenant_id_from_request(self):
         """get_tenant_id_from_request extracts tenant ID from state."""
-        from swe.app.middleware.tenant_identity import get_tenant_id_from_request
+        from swe.app.middleware.tenant_identity import (
+            get_tenant_id_from_request,
+        )
 
         mock_request = Mock()
         mock_request.state = Mock()
@@ -220,7 +248,9 @@ class TestTenantContextHelpers:
     @pytest.mark.skip(reason="Requires full app dependencies")
     def test_get_tenant_id_returns_none_when_not_set(self):
         """get_tenant_id_from_request returns None when not set."""
-        from swe.app.middleware.tenant_identity import get_tenant_id_from_request
+        from swe.app.middleware.tenant_identity import (
+            get_tenant_id_from_request,
+        )
 
         mock_request = Mock()
         mock_request.state = Mock()

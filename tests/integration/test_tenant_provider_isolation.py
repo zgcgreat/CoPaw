@@ -240,11 +240,7 @@ class TestMigrationBehavior:
             # Setup migrated structure for multiple tenants
             for tenant in ["default", "alice", "bob"]:
                 tenant_dir = (
-                    tmp_path
-                    / ".swe.secret"
-                    / tenant
-                    / "providers"
-                    / "builtin"
+                    tmp_path / ".swe.secret" / tenant / "providers" / "builtin"
                 )
                 tenant_dir.mkdir(parents=True)
 

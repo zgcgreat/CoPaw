@@ -123,6 +123,15 @@ export function ModelsSection({
   const openDistributionModal = async () => {
     if (!currentSlot?.provider_id || !currentSlot?.model) return;
 
+    if (dirty) {
+      Modal.warning({
+        title: t("models.distributeDirtyTitle"),
+        content: t("models.distributeDirtyHint"),
+        okText: t("common.confirm"),
+      });
+      return;
+    }
+
     setDistributionOpen(true);
     setSelectedDistributionTenantIds([]);
     setDistributionLoading(true);

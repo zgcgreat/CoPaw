@@ -113,16 +113,26 @@ class DynamicMultiAgentRunner:
 
     async def stream_query(self, request, *args, **kwargs):
         """Dynamically route to the correct workspace runner."""
+        from ..config.llm_workload import (
+            LLM_WORKLOAD_CHAT,
+            bind_llm_workload,
+        )
+
         logger.debug("DynamicMultiAgentRunner.stream_query called")
         try:
             runner = await self._get_workspace_runner(request)
             logger.debug(f"Got runner: {runner}, type: {type(runner)}")
             # Delegate to the actual runner's stream_query generator
             count = 0
-            async for item in runner.stream_query(request, *args, **kwargs):
-                count += 1
-                logger.debug(f"Yielding item #{count}: {type(item)}")
-                yield item
+            with bind_llm_workload(LLM_WORKLOAD_CHAT):
+                async for item in runner.stream_query(
+                    request,
+                    *args,
+                    **kwargs,
+                ):
+                    count += 1
+                    logger.debug(f"Yielding item #{count}: {type(item)}")
+                    yield item
             logger.debug(f"stream_query completed, yielded {count} items")
         except Exception as e:
             logger.error(
@@ -550,13 +560,15 @@ register_custom_channel_routes(app)
 # User-specific static files: /static/{user_id}/{path}
 # This route dynamically resolves the user directory per-request.
 # The directory is created on-demand if it doesn't exist.
-@app.get("/static/{user_id}/{file_name:path}")
+@app.get("/static/{user_id}/{agent_id}/{file_name:path}")
 async def serve_user_static(
     user_id: str,
+    agent_id: str,
     file_name: str,
 ):
     """Serve static files from user's static directory.
     Args:
+        agent_id: multi agent id
         user_id: User identifier (used to determine static directory)
         file_name: Relative path within user's static directory
     Returns:
@@ -568,7 +580,7 @@ async def serve_user_static(
     logger.info(f"Serving static files from user {user_id}")
 
     static_dir = (
-        WORKING_DIR / user_id / "workspaces" / "default" / "static"
+        WORKING_DIR / user_id / "workspaces" / agent_id / "static"
     ).resolve()
 
     # Security: ensure resolved path is still within user's static dir

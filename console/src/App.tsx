@@ -59,6 +59,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // Token is already initialized at App level, no need to wait here
     let cancelled = false;
     (async () => {
       try {
@@ -215,6 +216,10 @@ function AppInner() {
 }
 
 function App() {
+  // ==================== 外部系统 Token 针权 ====================
+  // Token 已在 main.tsx 中获取完成，此处无需等待
+  // ==================== 外部系统 Token 针权结束 ====================
+
   return (
     <ThemeProvider>
       {/* ==================== 品牌主题 (Kun He) ==================== */}

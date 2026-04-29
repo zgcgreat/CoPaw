@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@agentscope-ai/design": path.resolve(
+        __dirname,
+        "./src/test/mocks/agentscopeDesign.ts",
+      ),
     },
   },
   test: {

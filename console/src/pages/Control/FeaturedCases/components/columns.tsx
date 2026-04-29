@@ -1,9 +1,10 @@
 import type { ColumnType } from "antd/es/table";
 import type { FeaturedCase } from "@/api/types/featuredCases";
+import { BBK_ID_MAP } from "@/constants/bbk";
 
 interface CreateCaseColumnsOptions {
   onEdit: (caseItem: FeaturedCase) => void;
-  onDelete: (caseId: string) => void;
+  onDelete: (id: number) => void;
 }
 
 export function createCaseColumns({
@@ -11,20 +12,21 @@ export function createCaseColumns({
   onDelete,
 }: CreateCaseColumnsOptions): ColumnType<FeaturedCase>[] {
   return [
+    // {
+    //   title: "ID",
+    //   dataIndex: "id",
+    //   key: "id",
+    //   width: 80,
+    // },
     {
-      title: "案例 ID",
-      dataIndex: "case_id",
-      key: "case_id",
-      width: 180,
-      ellipsis: true,
-    },
-    {
-      title: "BBK ID",
+      title: "机构",
       dataIndex: "bbk_id",
       key: "bbk_id",
       width: 120,
-      render: (bbkId: string | null) =>
-        bbkId || <span style={{ color: "#999" }}>-</span>,
+      render: (bbkId: string | null) => {
+        const org = BBK_ID_MAP.find((item) => item.value === bbkId);
+        return org ? org.label : bbkId || <span style={{ color: "#999"}}>-</span>;
+      },
     },
     {
       title: "标题",
@@ -60,7 +62,7 @@ export function createCaseColumns({
             编辑
           </a>
           <a
-            onClick={() => onDelete(record.case_id)}
+            onClick={() => onDelete(record.id)}
             style={{ color: "#ff4d4f" }}
           >
             删除

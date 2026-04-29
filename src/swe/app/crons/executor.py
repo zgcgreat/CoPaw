@@ -10,6 +10,7 @@ from .auth_state import resolve_auth_token_for_execution
 from .models import CronJobSpec
 from ..tenant_context import bind_tenant_context
 from ..console_push_store import append as push_store_append
+from ...config.llm_workload import LLM_WORKLOAD_CRON, bind_llm_workload
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +56,13 @@ class CronExecutor:
         )
 
         # Wrap execution in tenant context
-        with bind_tenant_context(
-            tenant_id=tenant_id,
-            user_id=target_user_id,
-            workspace_dir=workspace_dir,
+        with (
+            bind_tenant_context(
+                tenant_id=tenant_id,
+                user_id=target_user_id,
+                workspace_dir=workspace_dir,
+            ),
+            bind_llm_workload(LLM_WORKLOAD_CRON),
         ):
             await self._execute_job(
                 job,

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for tenant model context management."""
 
 from contextvars import Token
@@ -38,8 +39,14 @@ def sample_config() -> TenantModelConfig:
         routing=RoutingConfig(
             mode="cloud_first",
             slots={
-                "local": ModelSlot(provider_id="openai-main", model="gpt-3.5-turbo"),
-                "cloud": ModelSlot(provider_id="anthropic-main", model="claude-3-opus"),
+                "local": ModelSlot(
+                    provider_id="openai-main",
+                    model="gpt-3.5-turbo",
+                ),
+                "cloud": ModelSlot(
+                    provider_id="anthropic-main",
+                    model="claude-3-opus",
+                ),
             },
         ),
     )
@@ -63,7 +70,10 @@ def another_config() -> TenantModelConfig:
             mode="local_first",
             slots={
                 "local": ModelSlot(provider_id="ollama-local", model="llama2"),
-                "cloud": ModelSlot(provider_id="ollama-local", model="codellama"),
+                "cloud": ModelSlot(
+                    provider_id="ollama-local",
+                    model="codellama",
+                ),
             },
         ),
     )
@@ -78,7 +88,10 @@ class TestTenantModelContext:
         result = TenantModelContext.get_config()
         assert result is None
 
-    def test_set_and_get_config(self, sample_config: TenantModelConfig) -> None:
+    def test_set_and_get_config(
+        self,
+        sample_config: TenantModelConfig,
+    ) -> None:
         """Test setting and getting config."""
         token = TenantModelContext.set_config(sample_config)
         try:
@@ -99,7 +112,8 @@ class TestTenantModelContext:
         assert "TenantModelConfig is not set in context" in str(exc_info.value)
 
     def test_get_config_strict_returns_config_when_set(
-        self, sample_config: TenantModelConfig
+        self,
+        sample_config: TenantModelConfig,
     ) -> None:
         """Test that get_config_strict returns config when set."""
         token = TenantModelContext.set_config(sample_config)
@@ -110,7 +124,8 @@ class TestTenantModelContext:
             TenantModelContext.reset_config(token)
 
     def test_reset_config_restores_previous_state(
-        self, sample_config: TenantModelConfig
+        self,
+        sample_config: TenantModelConfig,
     ) -> None:
         """Test that reset_config restores previous state."""
         # Set initial config
@@ -126,7 +141,9 @@ class TestTenantModelContext:
         assert result is None
 
     def test_nested_contexts(
-        self, sample_config: TenantModelConfig, another_config: TenantModelConfig
+        self,
+        sample_config: TenantModelConfig,
+        another_config: TenantModelConfig,
     ) -> None:
         """Test that nested contexts work correctly with token-based reset."""
         # Initially, config should be None
@@ -149,7 +166,9 @@ class TestTenantModelContext:
         assert TenantModelContext.get_config() is None
 
     def test_multiple_nested_contexts(
-        self, sample_config: TenantModelConfig, another_config: TenantModelConfig
+        self,
+        sample_config: TenantModelConfig,
+        another_config: TenantModelConfig,
     ) -> None:
         """Test multiple levels of nesting."""
         token1 = TenantModelContext.set_config(sample_config)
@@ -171,7 +190,10 @@ class TestTenantModelContext:
         TenantModelContext.reset_config(token1)
         assert TenantModelContext.get_config() is None
 
-    def test_set_config_returns_token(self, sample_config: TenantModelConfig) -> None:
+    def test_set_config_returns_token(
+        self,
+        sample_config: TenantModelConfig,
+    ) -> None:
         """Test that set_config returns a Token object."""
         token = TenantModelContext.set_config(sample_config)
         assert token is not None
@@ -179,7 +201,8 @@ class TestTenantModelContext:
         TenantModelContext.reset_config(token)
 
     def test_config_isolation_across_contexts(
-        self, sample_config: TenantModelConfig
+        self,
+        sample_config: TenantModelConfig,
     ) -> None:
         """Test that config changes in one context don't affect parent context."""
         token1 = TenantModelContext.set_config(sample_config)
@@ -190,9 +213,10 @@ class TestTenantModelContext:
                     version="2.0",
                     providers=[],
                     routing=RoutingConfig(
-                        mode="local_first", slots={}
+                        mode="local_first",
+                        slots={},
                     ),
-                )
+                ),
             )
 
             # Should see new config

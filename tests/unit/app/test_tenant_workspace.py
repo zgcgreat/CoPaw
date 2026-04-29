@@ -158,6 +158,31 @@ class TestTenantWorkspaceHelpers:
             "default_RMASSIST",
         )
 
+    @pytest.mark.asyncio
+    async def test_dispatch_allows_public_static_without_tenant_context(self):
+        """Public static routes should bypass workspace requirements."""
+        from swe.app.middleware.tenant_workspace import (
+            TenantWorkspaceMiddleware,
+        )
+
+        mock_req = MagicMock(spec=Request)
+        mock_req.method = "GET"
+        mock_req.state = MagicMock()
+        mock_req.state.tenant_id = None
+        mock_req.state.effective_tenant_id = None
+        mock_req.url = MagicMock()
+        mock_req.url.path = "/static/alice/demo.txt"
+        mock_req.app = MagicMock()
+
+        middleware = TenantWorkspaceMiddleware(app=MagicMock())
+
+        async def call_next(_request):
+            return Response(content=b"OK", status_code=200)
+
+        response = await middleware.dispatch(mock_req, call_next)
+
+        assert response.status_code == 200
+
 
 class TestTenantWorkspaceContextReset:
     """Tests for context reset after request."""

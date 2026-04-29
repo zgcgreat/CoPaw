@@ -355,17 +355,21 @@ Controls agent runtime behavior, retry strategies, context management, and memor
 
 **LLM Retry & Rate Limiting:**
 
-| Field                   | Type  | Default | Description                                                                                           |
-| ----------------------- | ----- | ------- | ----------------------------------------------------------------------------------------------------- |
-| `llm_retry_enabled`     | bool  | `true`  | Whether to auto-retry transient LLM API failures such as rate limits, timeouts, and connection errors |
-| `llm_max_retries`       | int   | `3`     | Maximum retry attempts for transient LLM API failures (must be ≥ 1)                                   |
-| `llm_backoff_base`      | float | `1.0`   | Base delay in seconds for exponential retry backoff (must be ≥ 0.1)                                   |
-| `llm_backoff_cap`       | float | `10.0`  | Maximum backoff delay cap in seconds (must be ≥ 0.5 and greater than or equal to `llm_backoff_base`)  |
-| `llm_max_concurrent`    | int   | `10`    | Maximum concurrent LLM calls (shared across all agents)                                               |
-| `llm_max_qpm`           | int   | `600`   | Maximum queries per minute (QPM). 0 = no limit                                                        |
-| `llm_rate_limit_pause`  | float | `5.0`   | Global pause duration in seconds after receiving a 429 rate limit response                            |
-| `llm_rate_limit_jitter` | float | `1.0`   | Random jitter range in seconds added to rate limit pause to avoid thundering herd                     |
-| `llm_acquire_timeout`   | float | `300.0` | Maximum timeout in seconds to wait for acquiring a rate limit slot                                    |
+| Field                      | Type          | Default | Description                                                                                                                       |
+| -------------------------- | ------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `llm_retry_enabled`        | bool          | `true`  | Whether to auto-retry transient LLM API failures such as rate limits, timeouts, and connection errors                             |
+| `llm_max_retries`          | int           | `3`     | Maximum retry attempts for transient LLM API failures (must be ≥ 1)                                                               |
+| `llm_backoff_base`         | float         | `1.0`   | Base delay in seconds for exponential retry backoff (must be ≥ 0.1)                                                               |
+| `llm_backoff_cap`          | float         | `10.0`  | Maximum backoff delay cap in seconds (must be ≥ 0.5 and greater than or equal to `llm_backoff_base`)                              |
+| `llm_max_concurrent`       | int           | `10`    | Default maximum concurrent LLM calls for each workload in the current tenant-local agent scope                                    |
+| `llm_chat_max_concurrent`  | int \| null   | `null`  | Maximum concurrent LLM calls for chat workload; uses `llm_max_concurrent` when unset                                              |
+| `llm_cron_max_concurrent`  | int \| null   | `null`  | Maximum concurrent LLM calls for cron and heartbeat workloads; uses `llm_max_concurrent` when unset                               |
+| `llm_max_qpm`              | int           | `600`   | Maximum queries per minute (QPM). 0 = no limit; shared by chat and cron workloads                                                 |
+| `llm_rate_limit_pause`     | float         | `5.0`   | Default pause duration in seconds in this agent scope after receiving a 429 rate limit response                                   |
+| `llm_rate_limit_jitter`    | float         | `1.0`   | Random jitter range in seconds added to rate limit pause to avoid thundering herd                                                 |
+| `llm_acquire_timeout`      | float         | `300.0` | Default maximum timeout in seconds to wait for acquiring a workload rate-limit slot; must be greater than `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
+| `llm_chat_acquire_timeout` | float \| null | `null`  | Maximum timeout for chat workload callers to acquire an LLM concurrency slot; uses `llm_acquire_timeout` when unset; when set, must be greater than `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
+| `llm_cron_acquire_timeout` | float \| null | `null`  | Maximum timeout for cron and heartbeat workload callers to acquire an LLM concurrency slot; uses `llm_acquire_timeout` when unset; when set, must be greater than `llm_rate_limit_pause` + `llm_rate_limit_jitter` |
 
 **Context Management:**
 

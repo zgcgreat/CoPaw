@@ -44,6 +44,8 @@ def test_workspace_registers_concrete_runner_service(tmp_path):
         workspace_dir=str(tmp_path / "test_agent"),
     )
 
-    descriptor = workspace._service_manager.descriptors["runner"]  # pylint: disable=protected-access
+    descriptor = workspace._service_manager.descriptors[
+        "runner"
+    ]  # pylint: disable=protected-access
 
     assert descriptor.service_class is not None

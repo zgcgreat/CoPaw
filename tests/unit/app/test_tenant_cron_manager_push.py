@@ -36,20 +36,28 @@ heartbeat_module = types.ModuleType("swe.app.crons.heartbeat")
 heartbeat_module.is_cron_expression = lambda every: False
 heartbeat_module.parse_heartbeat_cron = lambda every: ("*", "*", "*", "*", "*")
 heartbeat_module.parse_heartbeat_every = lambda every: 60
+
+
 async def _run_heartbeat_once(**kwargs):
     return None
+
+
 heartbeat_module.run_heartbeat_once = _run_heartbeat_once
 sys.modules["swe.app.crons.heartbeat"] = heartbeat_module
 
 config_module = types.ModuleType("swe.config")
-config_module.get_heartbeat_config = lambda agent_id=None: types.SimpleNamespace(
-    enabled=False,
-    every="60s",
+config_module.get_heartbeat_config = (
+    lambda agent_id=None: types.SimpleNamespace(
+        enabled=False,
+        every="60s",
+    )
 )
 sys.modules["swe.config"] = config_module
 
 push_calls = []
 push_module = types.ModuleType("swe.app.console_push_store")
+
+
 async def _append(session_id, text, *, sticky=False, tenant_id=None):
     push_calls.append(
         {
@@ -59,6 +67,8 @@ async def _append(session_id, text, *, sticky=False, tenant_id=None):
             "tenant_id": tenant_id,
         },
     )
+
+
 push_module.append = _append
 sys.modules["swe.app.console_push_store"] = push_module
 
@@ -70,18 +80,18 @@ models_spec = importlib.util.spec_from_file_location(
     "swe.app.crons.models",
     SRC_ROOT / "swe" / "app" / "crons" / "models.py",
 )
+assert models_spec is not None and models_spec.loader is not None
 models_module = importlib.util.module_from_spec(models_spec)
 sys.modules["swe.app.crons.models"] = models_module
-assert models_spec is not None and models_spec.loader is not None
 models_spec.loader.exec_module(models_module)
 
 manager_spec = importlib.util.spec_from_file_location(
     "swe.app.crons.manager",
     SRC_ROOT / "swe" / "app" / "crons" / "manager.py",
 )
+assert manager_spec is not None and manager_spec.loader is not None
 manager_module = importlib.util.module_from_spec(manager_spec)
 sys.modules["swe.app.crons.manager"] = manager_module
-assert manager_spec is not None and manager_spec.loader is not None
 manager_spec.loader.exec_module(manager_module)
 
 for _name, _module in _ORIGINAL_MODULES.items():
@@ -122,7 +132,9 @@ def test_task_done_cb_pushes_error_to_tenant_scoped_store():
         tenant_id="tenant-a",
         schedule=ScheduleSpec(cron="* * * * *"),
         task_type="agent",
-        request=CronJobRequest(input=[{"content": [{"type": "text", "text": "ping"}]}]),
+        request=CronJobRequest(
+            input=[{"content": [{"type": "text", "text": "ping"}]}],
+        ),
         dispatch=DispatchSpec(
             channel="console",
             target=DispatchTarget(user_id="user-a", session_id="session-a"),

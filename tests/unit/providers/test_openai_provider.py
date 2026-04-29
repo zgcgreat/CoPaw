@@ -243,7 +243,7 @@ def test_get_chat_model_instance_uses_kimi_chat_model(
             created.append(kwargs)
 
     monkeypatch.setattr(
-        "copaw.providers.kimi_chat_model.KimiChatModel",
+        "swe.providers.kimi_chat_model.KimiChatModel",
         FakeKimiChatModel,
     )
 

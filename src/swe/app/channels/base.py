@@ -4,6 +4,7 @@
 """
 Base Channel: bound to AgentRequest/AgentResponse, unified by process.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -36,6 +37,7 @@ from agentscope_runtime.engine.schemas.agent_schemas import (
 from .renderer import MessageRenderer, RenderStyle
 from .schema import ChannelType
 from ..tenant_context import bind_tenant_context
+from ...config.llm_workload import LLM_WORKLOAD_CHAT, bind_llm_workload
 from ...config.utils import load_config
 
 # Optional callback to enqueue payload (set by manager)
@@ -787,10 +789,17 @@ class BaseChannel(ABC):
             )
             if not is_control:
                 request = self._payload_to_request(payload)
-                with bind_tenant_context(
-                    tenant_id=getattr(self._workspace, "tenant_id", None),
-                    user_id=getattr(request, "user_id", None),
-                    workspace_dir=getattr(self._workspace, "workspace_dir", None),
+                with (
+                    bind_tenant_context(
+                        tenant_id=getattr(self._workspace, "tenant_id", None),
+                        user_id=getattr(request, "user_id", None),
+                        workspace_dir=getattr(
+                            self._workspace,
+                            "workspace_dir",
+                            None,
+                        ),
+                    ),
+                    bind_llm_workload(LLM_WORKLOAD_CHAT),
                 ):
                     await self._consume_with_tracker(request, payload)
                 return
@@ -810,10 +819,13 @@ class BaseChannel(ABC):
             # (e.g. Feishu save receive_id for cron send).
             setattr(request, "channel_meta", meta_from_payload)
         to_handle = self.get_to_handle_from_request(request)
-        with bind_tenant_context(
-            tenant_id=tenant_id,
-            user_id=getattr(request, "user_id", None),
-            workspace_dir=workspace_dir,
+        with (
+            bind_tenant_context(
+                tenant_id=tenant_id,
+                user_id=getattr(request, "user_id", None),
+                workspace_dir=workspace_dir,
+            ),
+            bind_llm_workload(LLM_WORKLOAD_CHAT),
         ):
             await self._before_consume_process(request)
             # Prefer meta built from payload so session_webhook is present when

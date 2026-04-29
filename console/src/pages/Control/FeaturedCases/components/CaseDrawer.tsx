@@ -4,11 +4,15 @@ import {
   Input,
   Switch,
   Button,
-  InputNumber,
+  Select,
 } from "@agentscope-ai/design";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import { useEffect } from "react";
 import type { FormInstance } from "antd";
 import type { FeaturedCase, CaseStep } from "@/api/types/featuredCases";
+import { useIframeStore } from "@/stores/iframeStore";
+import { DEFAULT_BBK_ID } from "@/constants/identity";
+import { BBK_ID_MAP } from "@/constants/bbk";
 
 interface CaseDrawerProps {
   open: boolean;
@@ -25,7 +29,6 @@ const DEFAULT_CASE: Partial<FeaturedCase> = {
   iframe_url: "",
   iframe_title: "",
   steps: [],
-  sort_order: 0,
 };
 
 export function CaseDrawer({
@@ -36,6 +39,15 @@ export function CaseDrawer({
   onClose,
   onSubmit,
 }: CaseDrawerProps) {
+  // 设置默认值从 iframeStore
+  useEffect(() => {
+    if(open && !editingCase){
+      const { bbk } = useIframeStore.getState();
+      console.log('store----bbk', bbk)
+      form.setFieldsValue({ bbk_id: bbk || DEFAULT_BBK_ID });
+    }
+  }, [open, editingCase, form]);
+
   return (
     <Drawer
       width={600}
@@ -61,18 +73,10 @@ export function CaseDrawer({
       >
         {/* source_id NOT displayed - comes from X-Source-Id header */}
 
-        <Form.Item name="bbk_id" label="BBK ID（可选）">
-          <Input placeholder="如 bbk-001，留空表示默认配置" />
-        </Form.Item>
-
-        <Form.Item
-          name="case_id"
-          label="案例 ID"
-          rules={[{ required: true, message: "请输入案例 ID" }]}
-        >
-          <Input
-            placeholder="如 case-deposit-maturity"
-            disabled={!!editingCase}
+        <Form.Item name="bbk_id" label="机构">
+          <Select
+            disabled
+            options={BBK_ID_MAP}
           />
         </Form.Item>
 
@@ -100,10 +104,6 @@ export function CaseDrawer({
 
         <Form.Item name="image_url" label="图片 URL">
           <Input placeholder="https://..." />
-        </Form.Item>
-
-        <Form.Item name="sort_order" label="排序序号">
-          <InputNumber min={0} placeholder="0" style={{ width: "100%" }} />
         </Form.Item>
 
         <Form.Item name="is_active" label="启用" valuePropName="checked">

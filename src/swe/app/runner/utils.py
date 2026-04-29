@@ -434,9 +434,11 @@ def agentscope_msg_to_message(
                     arguments=arguments,
                 ).model_dump()
 
+                tool_name = str(block.get("name") or "")
+
                 # Generate user-friendly summary for tool call
                 call_data["summary"] = generate_tool_call_summary(
-                    tool_name=block.get("name"),
+                    tool_name=tool_name,
                     arguments=arguments,
                     server_label=block.get("server_label"),
                 )
@@ -478,9 +480,11 @@ def agentscope_msg_to_message(
                     output=output,
                 ).model_dump(exclude_none=True)
 
+                tool_name = str(block.get("name") or "")
+
                 # Generate user-friendly summary for tool output
                 output_data["output_summary"] = generate_tool_output_summary(
-                    tool_name=block.get("name"),
+                    tool_name=tool_name,
                     output=output,
                 )
 

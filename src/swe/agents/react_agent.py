@@ -777,8 +777,8 @@ class SWEAgent(ToolGuardMixin, ReActAgent):
             if self._reply_task and not self._reply_task.done():
                 self._reply_task.cancel(
                     asyncio.CancelledError(
-                        f"Agent watchdog: no output for {timeout:.0f}s"
-                    )
+                        f"Agent watchdog: no output for {timeout:.0f}s",
+                    ),
                 )
 
         self._watchdog_task = asyncio.create_task(_watchdog())

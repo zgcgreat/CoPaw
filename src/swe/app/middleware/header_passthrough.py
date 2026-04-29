@@ -93,7 +93,7 @@ class HeaderPassthroughMiddleware(BaseHTTPMiddleware):
             name_lower = name.lower()
             if name_lower.startswith(self.HEADER_PREFIX):
                 # Strip prefix: x-header-cookie → cookie
-                mcp_name = name_lower[len(self.HEADER_PREFIX):]
+                mcp_name = name_lower[len(self.HEADER_PREFIX) :]
                 headers[mcp_name] = value
         return headers
 

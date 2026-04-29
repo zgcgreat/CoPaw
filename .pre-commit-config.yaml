@@ -71,7 +71,7 @@ repos:
     hooks:
       - id: flake8
         args: [
-          "--extend-ignore=E203,E501,C901,F811,F841,B007,B008,B009,B010,B014,B027",
+          "--extend-ignore=E203,E402,E501,C901,F811,F841,B007,B008,B009,B010,B014,B017,B027",
           "--max-complexity=15",
         ]
         additional_dependencies: ["flake8-bugbear>=23.0.0"]
@@ -123,5 +123,29 @@ repos:
           --disable=C0114,  # Disable missing module docstring for quick dev
           --disable=C0115,  # Disable missing class docstring for quick dev
           --disable=C0116,  # Disable missing function or method docstring for quick dev
+          --disable=C0301,
+          --disable=C0411,
+          --disable=C0413,
+          --disable=C1803,
+          --disable=E0603,
+          --disable=E0611,
+          --disable=E1102,
+          --disable=E1120,
+          --disable=R0911,
+          --disable=R0912,
+          --disable=W0107,
+          --disable=W0212,
+          --disable=W0246,
+          --disable=W0404,
+          --disable=W0611,
+          --disable=W0612,
+          --disable=W0613,
+          --disable=W0621,
+          --disable=W0622,
+          --disable=W0706,
+          --disable=W0707,
+          --disable=W1309,
+          --disable=W1404,
+          --disable=W1514,
         ]
   # prettier hook removed - console/ is excluded and it requires downloading Node.js

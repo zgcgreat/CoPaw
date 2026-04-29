@@ -269,7 +269,9 @@ class TestExecutionLock:
         await lock2.release()
 
     async def test_execution_lock_expires(
-        self, redis_client, coordination_config,
+        self,
+        redis_client,
+        coordination_config,
     ):
         """Test that lock expires after TTL."""
         lock = ExecutionLock(
@@ -337,7 +339,8 @@ class TestCronCoordination:
     async def test_connect_without_redis_raises_error(self):
         """Test that connection fails gracefully if Redis unavailable."""
         config = CoordinationConfig(
-            enabled=True, redis_url="redis://invalid:6379",
+            enabled=True,
+            redis_url="redis://invalid:6379",
         )
         coord = CronCoordination(
             tenant_id="test",
@@ -378,7 +381,8 @@ class TestCronCoordination:
             await coord.activate()
 
     async def test_publish_reload_without_connection(
-        self, coordination_config,
+        self,
+        coordination_config,
     ):
         """Test that publish_reload returns False if not connected."""
         coord = CronCoordination(
@@ -586,7 +590,9 @@ class TestCronCoordinationWithRedis:
         await coord.disconnect()
 
     async def test_create_execution_lock(
-        self, redis_client, coordination_config,
+        self,
+        redis_client,
+        coordination_config,
     ):
         """Test creating execution lock through coordination."""
         coord = CronCoordination(
@@ -610,7 +616,8 @@ class TestCronCoordinationWithRedis:
         await coord.disconnect()
 
     async def test_create_execution_lock_without_connection(
-        self, coordination_config,
+        self,
+        coordination_config,
     ):
         """Test that creating execution lock without connection raises error."""
         coord = CronCoordination(
@@ -823,7 +830,9 @@ class TestCronCoordinationCandidateLoop:
 
     @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis not available")
     async def test_candidate_loop_becomes_leader(
-        self, redis_client, coordination_config,
+        self,
+        redis_client,
+        coordination_config,
     ):
         """Test that candidate loop can acquire leadership when lease is free."""
         coord = CronCoordination(
@@ -848,7 +857,9 @@ class TestCronCoordinationCandidateLoop:
         await coord.start_candidate_loop()
 
         # Wait for candidate loop to try
-        await asyncio.sleep(coordination_config.lease_renew_interval_seconds + 1)
+        await asyncio.sleep(
+            coordination_config.lease_renew_interval_seconds + 1,
+        )
 
         # Should have become leader
         assert coord.is_leader
@@ -859,7 +870,9 @@ class TestCronCoordinationCandidateLoop:
 
     @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis not available")
     async def test_candidate_loop_with_existing_leader(
-        self, redis_client, coordination_config,
+        self,
+        redis_client,
+        coordination_config,
     ):
         """Test that candidate loop doesn't steal existing lease."""
         coord1 = CronCoordination(
@@ -883,7 +896,9 @@ class TestCronCoordinationCandidateLoop:
         await coord2.start_candidate_loop()
 
         # Wait for candidate loop to try
-        await asyncio.sleep(coordination_config.lease_renew_interval_seconds + 1)
+        await asyncio.sleep(
+            coordination_config.lease_renew_interval_seconds + 1,
+        )
 
         # Second should still be follower
         assert not coord2.is_leader

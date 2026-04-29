@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Featured case models (simplified - merged tables)."""
+"""Featured case models (simplified - no case_id)."""
 
 from datetime import datetime
 from typing import List, Optional
@@ -30,7 +30,6 @@ class FeaturedCase(BaseModel):
     id: Optional[int] = None
     source_id: str = Field(..., min_length=1, max_length=64)
     bbk_id: Optional[str] = Field(None, max_length=64)
-    case_id: str = Field(..., min_length=1, max_length=64)
     label: str = Field(..., min_length=1, max_length=512)
     value: str = Field(..., min_length=1)
     image_url: Optional[str] = Field(None, max_length=1024)
@@ -47,17 +46,16 @@ class FeaturedCaseCreate(BaseModel):
     """Create featured case request.
 
     Note: source_id is NOT a form field - it comes from X-Source-Id header.
+    Note: sort_order is auto-generated (max + 1 for current dimension).
     """
 
     bbk_id: Optional[str] = Field(None, max_length=64)
-    case_id: str = Field(..., min_length=1, max_length=64)
     label: str = Field(..., min_length=1, max_length=512)
     value: str = Field(..., min_length=1)
     image_url: Optional[str] = Field(None, max_length=1024)
     iframe_url: Optional[str] = Field(None, max_length=1024)
     iframe_title: Optional[str] = Field(None, max_length=256)
     steps: Optional[List[CaseStep]] = None
-    sort_order: int = 0
 
 
 class FeaturedCaseUpdate(BaseModel):

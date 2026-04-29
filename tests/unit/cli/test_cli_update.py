@@ -356,8 +356,7 @@ def test_update_can_cancel_forced_shutdown(monkeypatch) -> None:
         "processes" in result.output
     )
     assert (
-        "Run `swe shutdown` now and continue with the update?"
-        in result.output
+        "Run `swe shutdown` now and continue with the update?" in result.output
     )
     assert "Cancelled." in result.output
 

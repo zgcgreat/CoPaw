@@ -38,9 +38,11 @@ file_handling.read_text_file_with_encoding_fallback = lambda path: ""
 sys.modules["swe.agents.utils.file_handling"] = file_handling
 
 config_module = types.ModuleType("swe.config")
-config_module.get_heartbeat_config = lambda agent_id=None: types.SimpleNamespace(
-    active_hours=None,
-    target="main",
+config_module.get_heartbeat_config = (
+    lambda agent_id=None: types.SimpleNamespace(
+        active_hours=None,
+        target="main",
+    )
 )
 config_module.get_heartbeat_query_path = lambda: Path("/global/HEARTBEAT.md")
 config_module.load_config = lambda: types.SimpleNamespace(
@@ -62,9 +64,9 @@ heartbeat_spec = importlib.util.spec_from_file_location(
     "swe.app.crons.heartbeat",
     _HEARTBEAT_FILE,
 )
+assert heartbeat_spec is not None and heartbeat_spec.loader is not None
 heartbeat_module = importlib.util.module_from_spec(heartbeat_spec)
 sys.modules["swe.app.crons.heartbeat"] = heartbeat_module
-assert heartbeat_spec is not None and heartbeat_spec.loader is not None
 heartbeat_spec.loader.exec_module(heartbeat_module)
 
 for _name, _module in _ORIGINAL_MODULES.items():
@@ -92,6 +94,9 @@ def test_tenant_b_heartbeat_does_not_read_tenant_a_file(tmp_path):
     (tenant_a / "HEARTBEAT.md").write_text("tenant-a", encoding="utf-8")
     (tenant_b / "HEARTBEAT.md").write_text("tenant-b", encoding="utf-8")
 
-    assert heartbeat_module.resolve_heartbeat_path(
-        workspace_dir=tenant_b,
-    ) == tenant_b / "HEARTBEAT.md"
+    assert (
+        heartbeat_module.resolve_heartbeat_path(
+            workspace_dir=tenant_b,
+        )
+        == tenant_b / "HEARTBEAT.md"
+    )

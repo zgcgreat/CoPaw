@@ -64,10 +64,14 @@ export interface AgentsRunningConfig {
   llm_backoff_base: number;
   llm_backoff_cap: number;
   llm_max_concurrent: number;
+  llm_chat_max_concurrent: number | null;
+  llm_cron_max_concurrent: number | null;
   llm_max_qpm: number;
   llm_rate_limit_pause: number;
   llm_rate_limit_jitter: number;
   llm_acquire_timeout: number;
+  llm_chat_acquire_timeout: number | null;
+  llm_cron_acquire_timeout: number | null;
   max_input_length: number;
   history_max_length: number;
   context_compact: ContextCompactConfig;

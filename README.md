@@ -62,7 +62,7 @@ Your personal AI assistant — easy to install, deploy locally or in the cloud, 
 
 - **[v1.0.0] Added:**
   - **Multi-Agent System**: Background task support with CLI `--background` flag and task tracking; agent enable/disable toggle via console and API; unified priority queue system with `/stop` command for task cancellation
-  - **Providers and Models**: SWE local model provider with llama.cpp; global LLM rate limiter with QPM sliding window
+  - **Providers and Models**: SWE local model provider with llama.cpp; tenant-local agent scoped LLM rate limiter with QPM sliding window
   - **Security**: Tool guard rules for system reboot & service protection; Chinese prompt injection detection in skill scanner
   - **Console & UI**: Download page for desktop installers with mirror sites; multimodal preview (image, audio, video, files) in console chat
   - **Channels**: WeChat iLink Bot channel; custom channel HTTP routes for webhooks

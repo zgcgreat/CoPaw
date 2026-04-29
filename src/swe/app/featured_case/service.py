@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Featured case service (simplified - merged tables)."""
+"""Featured case service (simplified - no case_id)."""
 
 import logging
 from typing import Optional
@@ -39,11 +39,11 @@ class FeaturedCaseService:
         """
         return await self.store.get_cases_for_dimension(source_id, bbk_id)
 
-    async def get_case_by_id(self, case_id: str) -> Optional[FeaturedCase]:
-        """Get case by case_id.
+    async def get_case_by_id(self, case_id: int) -> Optional[FeaturedCase]:
+        """Get case by id.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
 
         Returns:
             FeaturedCase if found, None otherwise
@@ -90,42 +90,29 @@ class FeaturedCaseService:
 
         Returns:
             Created FeaturedCase
-
-        Raises:
-            ValueError: If case already exists for this dimension
         """
-        exists = await self.store.check_case_exists(
-            source_id,
-            request.case_id,
-            request.bbk_id,
-        )
-        if exists:
-            raise ValueError(f"案例 {request.case_id} 在当前维度下已存在")
-
         case = FeaturedCase(
             source_id=source_id,
             bbk_id=request.bbk_id,
-            case_id=request.case_id,
             label=request.label,
             value=request.value,
             image_url=request.image_url,
             iframe_url=request.iframe_url,
             iframe_title=request.iframe_title,
             steps=request.steps,
-            sort_order=request.sort_order,
             is_active=True,
         )
         return await self.store.create_case(case)
 
     async def update_case(
         self,
-        case_id: str,
+        case_id: int,
         request: FeaturedCaseUpdate,
     ) -> FeaturedCase:
         """Update case.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
             request: Update request
 
         Returns:
@@ -150,11 +137,11 @@ class FeaturedCaseService:
             raise ValueError("案例不存在")
         return updated
 
-    async def delete_case(self, case_id: str) -> None:
+    async def delete_case(self, case_id: int) -> None:
         """Delete case.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
 
         Raises:
             ValueError: If case not found

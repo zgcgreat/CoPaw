@@ -2,12 +2,15 @@
 import json
 from pathlib import Path
 from typing import Any, Optional, Dict, List, Literal
+from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 import shortuuid
 
 from .timezone import detect_system_timezone
 from ..constant import (
+    DEFAULT_LLM_CHAT_MAX_CONCURRENT,
+    DEFAULT_LLM_CRON_MAX_CONCURRENT,
     EnvVarLoader,
     HEARTBEAT_DEFAULT_EVERY,
     HEARTBEAT_DEFAULT_TARGET,
@@ -377,6 +380,14 @@ class MemorySummaryConfig(BaseModel):
     )
 
 
+class SuggestionMode(str, Enum):
+    """猜你想问生成模式."""
+
+    DISABLED = "disabled"  # 完全禁用
+    BACKEND_GENERATE = "backend_generate"  # 后端生成（原有模式）
+    QA_EXTRACTION_ONLY = "qa_extraction_only"  # 仅提取 Q&A（新模式）
+
+
 class SuggestionConfig(BaseModel):
     """猜你想问功能配置 - 在模型回答后异步生成后续问题建议."""
 
@@ -385,6 +396,10 @@ class SuggestionConfig(BaseModel):
     enabled: bool = Field(
         default=True,
         description="是否启用猜你想问功能",
+    )
+    mode: SuggestionMode = Field(
+        default=SuggestionMode.QA_EXTRACTION_ONLY,
+        description="猜你想问生成模式",
     )
     max_suggestions: int = Field(
         default=3,
@@ -409,6 +424,18 @@ class SuggestionConfig(BaseModel):
         ge=200,
         le=2000,
         description="助手回答截断长度（字符）",
+    )
+    qa_content_total_max_length: int = Field(
+        default=1500,
+        ge=500,
+        le=3000,
+        description="Q&A 内容总长度上限（字符）",
+    )
+    qa_content_max_age_seconds: int = Field(
+        default=120,
+        ge=30,
+        le=300,
+        description="Q&A 内容存储有效期（秒）",
     )
 
 
@@ -455,8 +482,29 @@ class AgentsRunningConfig(BaseModel):
         default=LLM_MAX_CONCURRENT,
         ge=1,
         description=(
-            "Maximum number of concurrent in-flight LLM calls. "
-            "Shared across all agents; only the first initialization wins."
+            "Fallback maximum number of concurrent in-flight LLM calls for "
+            "this tenant-local agent scope. Chat and cron workloads use "
+            "separate pools with workload-specific defaults."
+        ),
+    )
+
+    llm_chat_max_concurrent: Optional[int] = Field(
+        default=DEFAULT_LLM_CHAT_MAX_CONCURRENT,
+        ge=1,
+        description=(
+            "Maximum concurrent in-flight LLM calls for chat workload "
+            "traffic in this tenant-local agent scope. When unset or null, "
+            "the chat default is used."
+        ),
+    )
+
+    llm_cron_max_concurrent: Optional[int] = Field(
+        default=DEFAULT_LLM_CRON_MAX_CONCURRENT,
+        ge=1,
+        description=(
+            "Maximum concurrent in-flight LLM calls for cron and heartbeat "
+            "workload traffic in this tenant-local agent scope. When unset "
+            "or null, the cron default is used."
         ),
     )
 
@@ -464,9 +512,10 @@ class AgentsRunningConfig(BaseModel):
         default=LLM_MAX_QPM,
         ge=0,
         description=(
-            "Maximum queries per minute (60-second sliding window). "
-            "New requests that would exceed this limit wait before being "
-            "dispatched — proactively preventing 429s. 0 = disabled."
+            "Maximum queries per minute for this tenant-local agent scope "
+            "(60-second sliding window). New requests that would exceed this "
+            "limit wait before being dispatched; 0 = disabled. This quota is "
+            "shared across chat and cron workloads."
         ),
     )
 
@@ -474,8 +523,9 @@ class AgentsRunningConfig(BaseModel):
         default=LLM_RATE_LIMIT_PAUSE,
         ge=1.0,
         description=(
-            "Default pause duration (seconds) applied globally when a 429 "
-            "rate-limit response is received."
+            "Default pause duration (seconds) applied to this tenant-local "
+            "agent scope when a 429 rate-limit response is received. The "
+            "cooldown is shared across chat and cron workloads."
         ),
     )
 
@@ -484,7 +534,7 @@ class AgentsRunningConfig(BaseModel):
         ge=0.0,
         description=(
             "Random jitter range (seconds) added on top of the pause so "
-            "concurrent waiters stagger their wake-up."
+            "concurrent waiters in this agent scope stagger their wake-up."
         ),
     )
 
@@ -492,10 +542,52 @@ class AgentsRunningConfig(BaseModel):
         default=LLM_ACQUIRE_TIMEOUT,
         ge=10.0,
         description=(
-            "Maximum time (seconds) a caller waits to acquire a rate-limiter "
-            "slot before giving up with an error."
+            "Default maximum time (seconds) a caller waits to acquire its "
+            "workload-specific rate-limiter slot before giving up with an "
+            "error."
         ),
     )
+
+    llm_chat_acquire_timeout: Optional[float] = Field(
+        default=None,
+        ge=10.0,
+        description=(
+            "Optional maximum time (seconds) chat workload callers wait for "
+            "their LLM concurrency slot. When unset, llm_acquire_timeout is "
+            "used."
+        ),
+    )
+
+    llm_cron_acquire_timeout: Optional[float] = Field(
+        default=None,
+        ge=10.0,
+        description=(
+            "Optional maximum time (seconds) cron and heartbeat workload "
+            "callers wait for their LLM concurrency slot. When unset, "
+            "llm_acquire_timeout is used."
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def fill_workload_concurrency_defaults(
+        cls,
+        data: Any,
+    ) -> Any:
+        """Treat missing/null workload concurrency fields as defaults."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if normalized.get("llm_chat_max_concurrent") is None:
+            normalized[
+                "llm_chat_max_concurrent"
+            ] = DEFAULT_LLM_CHAT_MAX_CONCURRENT
+        if normalized.get("llm_cron_max_concurrent") is None:
+            normalized[
+                "llm_cron_max_concurrent"
+            ] = DEFAULT_LLM_CRON_MAX_CONCURRENT
+        return normalized
 
     @model_validator(mode="after")
     def validate_llm_retry_backoff(self) -> "AgentsRunningConfig":
@@ -505,6 +597,23 @@ class AgentsRunningConfig(BaseModel):
                 "llm_backoff_cap must be greater than or equal to "
                 "llm_backoff_base",
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_llm_acquire_timeout(self) -> "AgentsRunningConfig":
+        """Validate LLM acquire timeout relationships."""
+        cooldown = self.llm_rate_limit_pause + self.llm_rate_limit_jitter
+        for field_name in (
+            "llm_acquire_timeout",
+            "llm_chat_acquire_timeout",
+            "llm_cron_acquire_timeout",
+        ):
+            value = getattr(self, field_name)
+            if value is not None and value <= cooldown:
+                raise ValueError(
+                    f"{field_name} must be greater than "
+                    "llm_rate_limit_pause + llm_rate_limit_jitter",
+                )
         return self
 
     max_input_length: int = Field(

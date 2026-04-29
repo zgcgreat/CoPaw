@@ -64,6 +64,7 @@ class TestSpan:
         span = Span(
             span_id="span-123",
             trace_id="trace-456",
+            source_id="test-source",
             name="test_span",
             event_type=EventType.LLM_INPUT,
             start_time=now,
@@ -71,10 +72,10 @@ class TestSpan:
 
         assert span.span_id == "span-123"
         assert span.trace_id == "trace-456"
+        assert span.source_id == "test-source"
         assert span.name == "test_span"
         assert span.event_type == EventType.LLM_INPUT
         assert span.start_time == now
-        assert span.parent_span_id is None
         assert span.end_time is None
         assert span.duration_ms is None
         assert span.model_name is None
@@ -86,7 +87,6 @@ class TestSpan:
         assert span.tool_input is None
         assert span.tool_output is None
         assert span.error is None
-        assert span.metadata is None
 
     def test_span_creation_full(self):
         """Test creating a Span with all fields."""
@@ -94,7 +94,7 @@ class TestSpan:
         span = Span(
             span_id="span-123",
             trace_id="trace-456",
-            parent_span_id="parent-span-789",
+            source_id="test-source",
             name="test_span",
             event_type=EventType.TOOL_CALL_END,
             start_time=now,
@@ -112,12 +112,11 @@ class TestSpan:
             tool_input={"url": "https://example.com"},
             tool_output="result",
             error=None,
-            metadata={"extra": "data"},
         )
 
         assert span.span_id == "span-123"
         assert span.trace_id == "trace-456"
-        assert span.parent_span_id == "parent-span-789"
+        assert span.source_id == "test-source"
         assert span.name == "test_span"
         assert span.event_type == EventType.TOOL_CALL_END
         assert span.duration_ms == 1500
@@ -130,6 +129,7 @@ class TestSpan:
         span = Span(
             span_id="span-123",
             trace_id="trace-456",
+            source_id="test-source",
             name="test",
             event_type=EventType.LLM_INPUT,
             start_time=datetime.now(),
@@ -148,6 +148,7 @@ class TestTrace:
         now = datetime.now()
         trace = Trace(
             trace_id="trace-123",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -155,6 +156,7 @@ class TestTrace:
         )
 
         assert trace.trace_id == "trace-123"
+        assert trace.source_id == "test-source"
         assert trace.user_id == "user-1"
         assert trace.session_id == "session-1"
         assert trace.channel == "console"
@@ -175,6 +177,7 @@ class TestTrace:
         now = datetime.now()
         trace = Trace(
             trace_id="trace-123",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -192,6 +195,7 @@ class TestTrace:
         )
 
         assert trace.trace_id == "trace-123"
+        assert trace.source_id == "test-source"
         assert trace.duration_ms == 5000
         assert trace.total_input_tokens == 1000
         assert trace.total_output_tokens == 500
@@ -383,6 +387,7 @@ class TestTraceDetail:
         """Test creating TraceDetail."""
         trace = Trace(
             trace_id="trace-1",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -429,6 +434,7 @@ class TestTraceListItem:
         now = datetime.now()
         item = TraceListItem(
             trace_id="trace-1",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",
@@ -490,6 +496,7 @@ class TestUserMessageItem:
         now = datetime.now()
         item = UserMessageItem(
             trace_id="trace-1",
+            source_id="test-source",
             user_id="user-1",
             session_id="session-1",
             channel="console",

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for tenant_models exception classes."""
 
 
@@ -36,6 +37,8 @@ def test_tenant_model_validation_error():
         TenantModelValidationError,
     )
 
-    error = TenantModelValidationError("Invalid configuration: missing required field")
+    error = TenantModelValidationError(
+        "Invalid configuration: missing required field",
+    )
     assert isinstance(error, TenantModelError)
     assert "Invalid configuration" in str(error)

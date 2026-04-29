@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Cron executor tenant context regression tests."""
+
 # pylint: disable=protected-access
 import asyncio
 import importlib
@@ -35,6 +36,7 @@ channels_schema.DEFAULT_CHANNEL = "console"
 sys.modules["swe.app.channels.schema"] = channels_schema
 
 context_module = importlib.import_module("swe.config.context")
+llm_workload_module = importlib.import_module("swe.config.llm_workload")
 importlib.import_module("swe.app.tenant_context")
 
 models_spec = importlib.util.spec_from_file_location(
@@ -71,6 +73,10 @@ ScheduleSpec = models_module.ScheduleSpec
 
 def _get_current_workspace_dir():
     return context_module.get_current_workspace_dir()
+
+
+def _get_current_llm_workload():
+    return llm_workload_module.get_current_llm_workload()
 
 
 class _Runner:
@@ -156,6 +162,40 @@ def test_execute_binds_workspace_dir_during_job_and_resets_afterward(
         "/tmp/tenant-a/workspaces/alpha",
     )
     assert _get_current_workspace_dir() is None
+
+
+def test_execute_binds_cron_workload_during_job_and_resets_afterward(
+    monkeypatch,
+):
+    observed = {}
+    executor = CronExecutor(
+        runner=_Runner(),
+        channel_manager=_ChannelManager(),
+    )
+    job = _build_text_job("/tmp/tenant-a/workspaces/alpha")
+
+    async def fake_execute_job(
+        _self,
+        _job,
+        _target_user_id,
+        _target_session_id,
+        _dispatch_meta,
+    ):
+        observed["workload"] = _get_current_llm_workload()
+
+    monkeypatch.setattr(CronExecutor, "_execute_job", fake_execute_job)
+
+    with llm_workload_module.bind_llm_workload(
+        llm_workload_module.LLM_WORKLOAD_CHAT,
+    ):
+        asyncio.run(executor.execute(job))
+        assert (
+            _get_current_llm_workload()
+            == llm_workload_module.LLM_WORKLOAD_CHAT
+        )
+
+    assert observed["workload"] == llm_workload_module.LLM_WORKLOAD_CRON
+    assert _get_current_llm_workload() == llm_workload_module.LLM_WORKLOAD_CHAT
 
 
 def test_execute_resets_workspace_dir_after_timeout(monkeypatch):

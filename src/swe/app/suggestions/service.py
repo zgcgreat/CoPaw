@@ -48,14 +48,12 @@ def extract_key_content(text: str, max_length: int = 500) -> str:
 
     # 1. 提取标题行（# ## ### 开头）
     title_lines = [
-        l.strip() for l in lines if l.strip().startswith("#")
+        line.strip() for line in lines if line.strip().startswith("#")
     ]
 
     # 2. 提取列表项要点（- 或 * 或数字开头）
     list_pattern = re.compile(r"^\s*[-*]\s+|^\s*\d+\.\s+")
-    list_lines = [
-        l.strip() for l in lines if list_pattern.match(l)
-    ]
+    list_lines = [line.strip() for line in lines if list_pattern.match(line)]
 
     # 3. 保留开头（前 100 字）
     head_len = min(100, max_length // 4)
@@ -135,7 +133,10 @@ async def _extract_text_from_streaming_response(response) -> str:
         if not hasattr(chunk, "content") or not chunk.content:
             continue
         for content_block in chunk.content:
-            if isinstance(content_block, dict) and content_block.get("type") == "text":
+            if (
+                isinstance(content_block, dict)
+                and content_block.get("type") == "text"
+            ):
                 last_chunk_text = content_block.get("text", "")
     return last_chunk_text
 
@@ -204,7 +205,11 @@ async def generate_suggestions(
     )
 
     # 用户提问截断
-    truncated_user = user_message[:user_message_max_length] if len(user_message) > user_message_max_length else user_message
+    truncated_user = (
+        user_message[:user_message_max_length]
+        if len(user_message) > user_message_max_length
+        else user_message
+    )
 
     # 调试日志：展示提取后的关键内容
     logger.info(
@@ -223,7 +228,10 @@ async def generate_suggestions(
     )
 
     messages = [
-        {"role": "system", "content": "你是一个助手，负责生成用户可能想问的后续问题。只输出JSON数组，不要其他内容。"},
+        {
+            "role": "system",
+            "content": "你是一个助手，负责生成用户可能想问的后续问题。只输出JSON数组，不要其他内容。",
+        },
         {"role": "user", "content": prompt},
     ]
 
@@ -231,7 +239,10 @@ async def generate_suggestions(
         model = await SuggestionService.get_model()
 
         # 使用超时保护 (Python 3.10 compatible)
-        response = await asyncio.wait_for(model(messages), timeout=timeout_seconds)
+        response = await asyncio.wait_for(
+            model(messages),
+            timeout=timeout_seconds,
+        )
 
         # 处理流式响应
         if hasattr(response, "__aiter__"):
@@ -242,7 +253,10 @@ async def generate_suggestions(
         return _parse_suggestions_json(text, max_suggestions)
 
     except asyncio.TimeoutError:
-        logger.debug("Suggestion generation timed out after %s seconds", timeout_seconds)
+        logger.debug(
+            "Suggestion generation timed out after %s seconds",
+            timeout_seconds,
+        )
         return []
     except Exception as e:
         logger.debug("Suggestion generation failed: %s", e)

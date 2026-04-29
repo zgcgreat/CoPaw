@@ -116,7 +116,7 @@ class TokenUsageManager:
             )
             entry["prompt_tokens"] += int(item.get("prompt_tokens", 0) or 0)
             entry["completion_tokens"] += int(
-                item.get("completion_tokens", 0) or 0
+                item.get("completion_tokens", 0) or 0,
             )
             entry["call_count"] += int(item.get("call_count", 0) or 0)
 

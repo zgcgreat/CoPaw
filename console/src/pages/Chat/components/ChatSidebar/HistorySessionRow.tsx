@@ -1,6 +1,7 @@
 import React from "react";
 import ChatSessionItem from "../ChatSessionItem";
 import type { HistorySession } from "./historySessions";
+import { getHistorySessionTargetId } from "./historySessions";
 import { formatListTime } from "../../listTimeFormat";
 
 
@@ -34,18 +35,18 @@ function resolveBackendChatId(
 
 function HistorySessionRowInner(props: HistorySessionRowProps) {
   const { session, active, onSessionClick, onSessionDelete } = props;
-  const sessionId = session.id || "";
+  const targetId = getHistorySessionTargetId(session);
   const backendId = resolveBackendChatId(session);
 
 
   const handleClick = React.useCallback(() => {
-    onSessionClick(sessionId);
-  }, [onSessionClick, sessionId]);
+    onSessionClick(targetId);
+  }, [onSessionClick, targetId]);
 
 
   const handleDelete = React.useCallback(() => {
-    onSessionDelete(sessionId, backendId);
-  }, [backendId, onSessionDelete, sessionId]);
+    onSessionDelete(targetId, backendId);
+  }, [backendId, onSessionDelete, targetId]);
 
 
   return (

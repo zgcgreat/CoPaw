@@ -147,7 +147,9 @@ async def create_shell_restore(
     )
 
     if request.tenant_ids:
-        target_tenants = [t for t in request.tenant_ids if t in available_tenants]
+        target_tenants = [
+            t for t in request.tenant_ids if t in available_tenants
+        ]
     else:
         target_tenants = available_tenants
 
@@ -179,7 +181,12 @@ async def create_shell_restore(
 )
 async def list_shell_tasks(
     status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of tasks"),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=100,
+        description="Maximum number of tasks",
+    ),
 ) -> ShellTaskListResponse:
     """查询 Shell 备份任务列表。"""
     service = get_shell_backup_service()
@@ -214,8 +221,14 @@ async def get_shell_task(task_id: str) -> ShellTaskDetailResponse:
     description="列出 OSS 上可用的备份列表。",
 )
 async def list_shell_backups(
-    instance_id: Optional[str] = Query(None, description="Filter by instance ID"),
-    date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
+    instance_id: Optional[str] = Query(
+        None,
+        description="Filter by instance ID",
+    ),
+    date: Optional[str] = Query(
+        None,
+        description="Filter by date (YYYY-MM-DD)",
+    ),
     hour: Optional[int] = Query(None, description="Filter by hour (0-23)"),
     tenant_id: Optional[str] = Query(None, description="Filter by tenant ID"),
 ):

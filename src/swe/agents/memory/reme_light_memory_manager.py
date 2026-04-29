@@ -98,8 +98,11 @@ def _import_reme_light(memory_backend: str):
     try:
         return importlib.import_module("reme.reme_light").ReMeLight
     except Exception as exc:
-        if memory_backend == "chroma" or not _is_optional_chromadb_import_error(
-            exc,
+        if (
+            memory_backend == "chroma"
+            or not _is_optional_chromadb_import_error(
+                exc,
+            )
         ):
             raise
 

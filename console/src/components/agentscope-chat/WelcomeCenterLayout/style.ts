@@ -91,8 +91,7 @@ export default createGlobalStyle`
 }
 
 .welcome-cases-area {
-  width: 808px;
-  max-width: 100%;
+  width: 935px;
   margin: 0 auto;
 }
 `;

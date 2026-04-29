@@ -17,6 +17,7 @@ except (ImportError, ModuleNotFoundError):
 if _config_context is not None:
     TenantContextError = _config_context.TenantContextError
 else:
+
     def _build_fallback_tenant_context_error() -> type[RuntimeError]:
         class _FallbackTenantContextError(RuntimeError):
             """Fallback error used when config.context is stubbed in tests."""

@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Drawer, Spin } from "antd";
 import Style from "./style";
 import type { FeaturedCase, CaseDetail, CaseStep } from "@/api/types/featuredCases";
+import ScheduledTaskPopup from "@/components/ScheduledTaskPopup";
+import { cronJobApi } from "@/api/modules/cronjob";
+import { getUserId, getChannel } from "@/utils/identity";
+import { buildCronJobSpec, generateCronExpression, type ScheduleConfig } from "@/utils/cron";
 
 export interface CaseDetailDrawerProps {
   visible: boolean;
@@ -71,6 +75,14 @@ function RefreshIcon() {
   );
 }
 
+function normalizeUrl(url: string): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  return `https://${url}`;
+}
+
 export default function CaseDetailDrawer({
   visible,
   onClose,
@@ -80,12 +92,50 @@ export default function CaseDetailDrawer({
 }: CaseDetailDrawerProps) {
   const [iframeLoading, setIframeLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
+  const [scheduledPopupVisible, setScheduledPopupVisible] = useState(false);
 
   const handleMakeSimilar = () => {
     if (caseData) {
       onMakeSimilar?.(caseData.value);
     }
     onClose();
+  };
+
+  const handleOpenScheduledPopup = () => {
+    setScheduledPopupVisible(true);
+  };
+
+  const handleCloseScheduledPopup = () => {
+    setScheduledPopupVisible(false);
+  };
+
+  const handleTaskCreatedSuccess = () => {
+    // 关闭 CaseDetailDrawer
+    onClose();
+  };
+
+  const handleConfirmScheduledTask = async (
+    cronExpression: string,
+    config: ScheduleConfig
+  ) => {
+    if (!caseData) return;
+
+    const userId = getUserId();
+    const channel = getChannel();
+
+    const spec = buildCronJobSpec({
+      cronExpression,
+      name: caseData.label || "定时任务",
+      userId,
+      sessionId: undefined,
+      caseValue: caseData.value,
+      channel,
+    });
+
+    await cronJobApi.createCronJob(spec);
+
+    // 通知 Chat 页面刷新任务列表
+    document.dispatchEvent(new CustomEvent("taskCreated"));
   };
 
   const handleIframeLoad = () => {
@@ -106,12 +156,12 @@ export default function CaseDetailDrawer({
       ".case-detail-drawer-iframe",
     ) as HTMLIFrameElement;
     if (iframe && caseData?.iframe_url) {
-      iframe.src = caseData.iframe_url;
+      iframe.src = normalizeUrl(caseData.iframe_url);
     }
   };
 
   const steps: CaseStep[] = caseData?.steps || [];
-  const iframeUrl = caseData?.iframe_url || "";
+  const iframeUrl = normalizeUrl(caseData?.iframe_url || "");
   const iframeTitle = caseData?.iframe_title || "详情";
 
   return (
@@ -170,32 +220,32 @@ export default function CaseDetailDrawer({
               )}
             </div>
 
-            {/* Right: iframe */}
-            <div className="case-detail-drawer-iframe-panel">
-              <div className="case-detail-drawer-iframe-title">
-                {iframeTitle}
-              </div>
-              <div className="case-detail-drawer-iframe-container">
-                {iframeLoading && !iframeError && (
-                  <div className="case-detail-drawer-iframe-loading">
-                    <Spin />
-                    <span>加载中...</span>
-                  </div>
-                )}
-                {iframeError && (
-                  <div className="case-detail-drawer-iframe-error">
-                    <span>页面加载失败</span>
-                    <button
-                      className="case-detail-drawer-iframe-refresh"
-                      onClick={handleRefreshIframe}
-                      type="button"
-                    >
-                      <RefreshIcon />
-                      重新加载
-                    </button>
-                  </div>
-                )}
-                {iframeUrl && (
+            {/* Right: iframe - only show when iframeUrl exists */}
+            {iframeUrl && (
+              <div className="case-detail-drawer-iframe-panel">
+                <div className="case-detail-drawer-iframe-title">
+                  {iframeTitle}
+                </div>
+                <div className="case-detail-drawer-iframe-container">
+                  {iframeLoading && !iframeError && (
+                    <div className="case-detail-drawer-iframe-loading">
+                      <Spin />
+                      <span>加载中...</span>
+                    </div>
+                  )}
+                  {iframeError && (
+                    <div className="case-detail-drawer-iframe-error">
+                      <span>页面加载失败</span>
+                      <button
+                        className="case-detail-drawer-iframe-refresh"
+                        onClick={handleRefreshIframe}
+                        type="button"
+                      >
+                        <RefreshIcon />
+                        重新加载
+                      </button>
+                    </div>
+                  )}
                   <iframe
                     className="case-detail-drawer-iframe"
                     src={iframeUrl}
@@ -205,14 +255,9 @@ export default function CaseDetailDrawer({
                     onError={handleIframeError}
                     loading="lazy"
                   />
-                )}
-                {!iframeUrl && (
-                  <div className="case-detail-drawer-iframe-empty">
-                    暂无详情页面
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -221,9 +266,7 @@ export default function CaseDetailDrawer({
           <button
             className="case-detail-drawer-footer-btn"
             type="button"
-            onClick={() => {
-              /* TODO: subscribe as scheduled task */
-            }}
+            onClick={handleOpenScheduledPopup}
           >
             <SubscribeIcon />
             订阅为定时任务
@@ -239,6 +282,13 @@ export default function CaseDetailDrawer({
           </button>
         </div>
       </Drawer>
+      <ScheduledTaskPopup
+        open={scheduledPopupVisible}
+        onClose={handleCloseScheduledPopup}
+        onConfirm={handleConfirmScheduledTask}
+        onSuccess={handleTaskCreatedSuccess}
+        caseValue={caseData?.value}
+      />
     </>
   );
 }

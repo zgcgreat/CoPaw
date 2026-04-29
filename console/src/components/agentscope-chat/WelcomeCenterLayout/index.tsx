@@ -60,13 +60,13 @@ export default function WelcomeCenterLayout(props: WelcomeCenterLayoutProps) {
   }, []);
 
   // Handle "看案例" click - fetch detail from API
-  const handleViewCase = useCallback(async (caseId: string) => {
+  const handleViewCase = useCallback(async (id: number) => {
     setLoadingCase(true);
     setDrawerVisible(true);
     setSelectedCase(null); // Clear previous case
 
     try {
-      const caseData = await featuredCasesApi.getCaseDetail(caseId);
+      const caseData = await featuredCasesApi.getCaseDetail(id);
       setSelectedCase(caseData);
     } catch (error) {
       console.error("Failed to load case detail:", error);

@@ -377,7 +377,9 @@ class TestTenantBootstrapConcurrency:
                 return True
 
             # Concurrent bootstraps for same tenant
-            results = await asyncio.gather(*[bootstrap_tenant() for _ in range(10)])
+            results = await asyncio.gather(
+                *[bootstrap_tenant() for _ in range(10)],
+            )
             return results
 
         results = asyncio.run(run_test())
@@ -392,7 +394,7 @@ class TestTenantBootstrapConcurrency:
         from swe.agents.skills_manager import get_skill_pool_dir
 
         tenant_pool = get_skill_pool_dir(
-            working_dir=tmp_path / "concurrent-tenant"
+            working_dir=tmp_path / "concurrent-tenant",
         )
         assert (tenant_pool / "concurrent-skill" / "SKILL.md").exists()
 
@@ -426,7 +428,7 @@ class TestTenantBootstrapConcurrency:
                     "shared-skill-0": {"name": "shared-skill-0"},
                     "shared-skill-1": {"name": "shared-skill-1"},
                     "shared-skill-2": {"name": "shared-skill-2"},
-                }
+                },
             },
         )
 
@@ -440,7 +442,7 @@ class TestTenantBootstrapConcurrency:
             # Concurrent bootstraps for different tenants
             tenant_ids = [f"tenant-{i}" for i in range(5)]
             results = await asyncio.gather(
-                *[bootstrap_tenant(tid) for tid in tenant_ids]
+                *[bootstrap_tenant(tid) for tid in tenant_ids],
             )
             return results
 

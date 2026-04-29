@@ -150,7 +150,8 @@ class TestGetCurrentToolBaseDir:
         outside_workspace = mock_working_dir / "other_tenant"
 
         with tenant_context(
-            tenant_id=tenant_id, workspace_dir=outside_workspace
+            tenant_id=tenant_id,
+            workspace_dir=outside_workspace,
         ):
             with pytest.raises(PathTraversalError):
                 get_current_tool_base_dir()
@@ -245,7 +246,7 @@ class TestResolveTenantPath:
                 resolve_tenant_path(str(other_path))
 
             assert "Absolute paths outside the tenant workspace" in str(
-                exc_info.value
+                exc_info.value,
             )
 
     def test_allow_absolute_path_within_tenant(self, mock_working_dir: Path):
@@ -268,7 +269,8 @@ class TestResolveTenantPath:
 
         with tenant_context(tenant_id=tenant_id):
             result = resolve_tenant_path(
-                "new_file.txt", allow_nonexistent=True
+                "new_file.txt",
+                allow_nonexistent=True,
             )
             expected = mock_working_dir / tenant_id / "new_file.txt"
             assert result == expected
@@ -457,13 +459,15 @@ class TestIsPathWithinTenantWithBase:
             # ../../ should escape tenant from subdir
             assert (
                 is_path_within_tenant_with_base(
-                    "../../other_tenant", base_dir=subdir
+                    "../../other_tenant",
+                    base_dir=subdir,
                 )
                 is False
             )
 
     def test_returns_false_when_base_dir_outside_tenant(
-        self, mock_working_dir: Path
+        self,
+        mock_working_dir: Path,
     ):
         """Should return False when base_dir itself is outside tenant."""
         from swe.security.tenant_path_boundary import (
@@ -496,7 +500,8 @@ class TestIsPathWithinTenantWithBase:
             )
             assert (
                 is_path_within_tenant_with_base(
-                    "../other_tenant", base_dir=None
+                    "../other_tenant",
+                    base_dir=None,
                 )
                 is False
             )

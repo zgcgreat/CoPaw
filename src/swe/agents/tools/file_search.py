@@ -618,7 +618,7 @@ async def glob_search(
     # Reject patterns that attempt path traversal
     if ".." in pattern:
         return _make_response(
-            "Error: Glob pattern cannot contain '..' (path traversal)."
+            "Error: Glob pattern cannot contain '..' (path traversal).",
         )
 
     root_or_err = _resolve_search_root(path, require_dir=True)

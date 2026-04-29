@@ -1,4 +1,5 @@
 import { getApiToken } from "./config";
+import { getExternalToken, isExternalTokenEnabled } from "./externalToken";
 
 // ==================== userId 统一整改 (Kun He) ====================
 // 使用统一的 getUserId helper，遵循优先级：iframe > window > session > default
@@ -20,10 +21,19 @@ import { DEFAULT_SOURCE_ID, DEFAULT_BBK_ID } from "../constants/identity";
 export function buildAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
 
-  // 1. Token（优先级：localStorage > iframe context）
-  const token = getApiToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  // 1. Token（优先级：外部系统 token > localStorage > iframe context）
+  // 优先使用外部系统 token（如果启用）
+  if (isExternalTokenEnabled()) {
+    const externalToken = getExternalToken();
+    if (externalToken) {
+      headers.Authorization = `Bearer ${externalToken}`;
+    }
+  } else {
+    // 回退到原有 token 逻辑
+    const token = getApiToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
   }
 
   // 2. Agent ID（从 sessionStorage 读取当前选中的 agent）

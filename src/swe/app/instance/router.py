@@ -48,7 +48,9 @@ def init_instance_module(db=None):
         # Operate in stub mode - endpoints will handle missing service
         _store = None
         _service = None
-        logger.info("Instance module initialized in stub mode (no database connection)")
+        logger.info(
+            "Instance module initialized in stub mode (no database connection)",
+        )
         return
 
     _store = InstanceStore(db)

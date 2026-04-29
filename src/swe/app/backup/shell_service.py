@@ -59,7 +59,7 @@ class ShellBackupService:
             # 检查平台兼容性
             if sys.platform == "win32":
                 logger.warning(
-                    "Shell backup mode not supported on Windows platform"
+                    "Shell backup mode not supported on Windows platform",
                 )
                 raise HTTPException(
                     status_code=400,

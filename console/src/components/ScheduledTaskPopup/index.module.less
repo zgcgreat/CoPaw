@@ -1,0 +1,275 @@
+.modal {
+  :global(.ant-modal-content) {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.closeBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #999;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e8e8e8;
+    color: #666;
+  }
+}
+
+.body {
+  padding: 16px;
+}
+
+.section {
+  margin-bottom: 14px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  display: block;
+  font-weight: 500;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: #f5f5f5;
+  padding: 3px;
+  border-radius: 5px;
+}
+
+.tab {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #333;
+  }
+}
+
+.tabActive {
+  background: white;
+  color: #1677ff;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.timePicker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeInput {
+  width: 42px;
+  height: 28px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  background: white;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #1677ff;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+  }
+}
+
+.timeUnit {
+  font-size: 12px;
+  color: #666;
+}
+
+.timeSeparator {
+  font-size: 14px;
+  color: #999;
+  font-weight: 300;
+}
+
+.weekdayGrid {
+  display: flex;
+  gap: 4px;
+}
+
+.weekdayItem {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  font-weight: 500;
+
+  &:hover {
+    border-color: #1677ff;
+    color: #1677ff;
+  }
+}
+
+.weekdaySelected {
+  background: #1677ff;
+  border-color: #1677ff;
+  color: white;
+}
+
+.dateGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.dateItem {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  border: 1px solid transparent;
+  min-height: 24px;
+
+  &:hover {
+    background: #f0f7ff;
+    color: #1677ff;
+    border-color: #1677ff;
+  }
+}
+
+.dateSelected {
+  background: #1677ff;
+  color: white;
+  border-color: #1677ff;
+}
+
+.dateWarning {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #faad14;
+}
+
+.preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f6ffed;
+  border-radius: 4px;
+  border: 1px solid #b7eb8f;
+}
+
+.previewText {
+  font-size: 12px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.previewHighlight {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.btnCancel {
+  padding: 6px 16px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: white;
+  color: #666;
+  border: 1px solid #d9d9d9;
+
+  &:hover:not(:disabled) {
+    border-color: #1677ff;
+    color: #1677ff;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.btnConfirm {
+  padding: 6px 16px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: #1677ff;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #4096ff;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}

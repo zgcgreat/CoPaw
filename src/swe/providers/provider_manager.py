@@ -107,6 +107,7 @@ class ProviderManager:
         self.builtin_providers: Dict[str, Provider] = {}
         self.custom_providers: Dict[str, Provider] = {}
         self.active_model: ModelSlotConfig | None = None
+        self._file_mtimes: dict[str, float] = {}
         self.root_path = self._get_tenant_root_path(tenant_id)
         self.builtin_path = self.root_path / "builtin"
         self.custom_path = self.root_path / "custom"
@@ -118,6 +119,7 @@ class ProviderManager:
             logger.warning("Failed to migrate legacy providers: %s", e)
         self._init_from_storage()
         self._apply_default_annotations()
+        self._record_mtimes()
 
     @staticmethod
     def _get_tenant_root_path(tenant_id: str) -> Path:
@@ -477,7 +479,149 @@ class ProviderManager:
     def _add_builtin(self, provider: Provider):
         self.builtin_providers[provider.id] = provider
 
+    def _record_mtimes(self):
+        """Snapshot modification times of all provider config files."""
+        mtimes: dict[str, float] = {}
+        for provider_id in self.builtin_providers:
+            path = self.builtin_path / f"{provider_id}.json"
+            if path.exists():
+                mtimes[str(path)] = path.stat().st_mtime
+        for path in self.custom_path.glob("*.json"):
+            mtimes[str(path)] = path.stat().st_mtime
+        active_path = self.root_path / "active_model.json"
+        if active_path.exists():
+            mtimes[str(active_path)] = active_path.stat().st_mtime
+        self._file_mtimes = mtimes
+
+    def _update_mtime(self, path: Path):
+        """Update cached mtime for a single file after writing."""
+        if path.exists():
+            self._file_mtimes[str(path)] = path.stat().st_mtime
+        else:
+            self._file_mtimes.pop(str(path), None)
+
+    def _refresh_if_stale(self):
+        """Reload providers whose files changed on disk since last snapshot."""
+        changed_builtin = self._detect_changed_builtins()
+        (
+            changed_custom,
+            new_custom,
+            removed_custom,
+        ) = self._detect_custom_changes()
+        active_changed = self._detect_active_model_change()
+
+        if not any(
+            [
+                changed_builtin,
+                changed_custom,
+                new_custom,
+                removed_custom,
+                active_changed,
+            ],
+        ):
+            return
+
+        self._apply_builtin_refresh(changed_builtin)
+        self._apply_custom_refresh(changed_custom, new_custom, removed_custom)
+        if active_changed:
+            self._apply_active_model_refresh()
+        self._record_mtimes()
+
+    def _detect_changed_builtins(self) -> list[str]:
+        """Detect builtin providers whose files have changed."""
+        changed: list[str] = []
+        for provider_id in self.builtin_providers:
+            path = self.builtin_path / f"{provider_id}.json"
+            if self._file_has_changed(path):
+                changed.append(provider_id)
+        return changed
+
+    def _detect_custom_changes(
+        self,
+    ) -> tuple[list[Path], list[Path], list[str]]:
+        """Detect custom provider changes, additions, and removals."""
+        changed: list[Path] = []
+        new: list[Path] = []
+        current: set[str] = set()
+
+        for path in self.custom_path.glob("*.json"):
+            path_str = str(path)
+            current.add(path_str)
+            try:
+                mtime = path.stat().st_mtime
+                if path_str not in self._file_mtimes:
+                    new.append(path)
+                elif self._file_mtimes[path_str] != mtime:
+                    changed.append(path)
+            except OSError:
+                pass
+
+        removed = self._detect_removed_custom(current)
+        return changed, new, removed
+
+    def _detect_removed_custom(self, current_paths: set[str]) -> list[str]:
+        """Detect custom provider files that were removed."""
+        removed: list[str] = []
+        custom_prefix = str(self.custom_path)
+        for path_str in list(self._file_mtimes):
+            if (
+                path_str.startswith(custom_prefix)
+                and path_str not in current_paths
+            ):
+                removed.append(path_str)
+        return removed
+
+    def _detect_active_model_change(self) -> bool:
+        """Check if active model file has changed."""
+        active_path = self.root_path / "active_model.json"
+        return self._file_has_changed(active_path)
+
+    def _file_has_changed(self, path: Path) -> bool:
+        """Check if a file has changed since last snapshot."""
+        try:
+            if path.exists():
+                mtime = path.stat().st_mtime
+                return self._file_mtimes.get(str(path)) != mtime
+        except OSError:
+            pass
+        return False
+
+    def _apply_builtin_refresh(self, provider_ids: list[str]) -> None:
+        """Apply changes for modified builtin providers."""
+        for provider_id in provider_ids:
+            provider = self.load_provider(provider_id, is_builtin=True)
+            if provider:
+                builtin = self.builtin_providers[provider_id]
+                if not builtin.freeze_url:
+                    builtin.base_url = provider.base_url
+                builtin.api_key = provider.api_key
+                builtin.extra_models = provider.extra_models
+                builtin.generate_kwargs.update(provider.generate_kwargs)
+
+    def _apply_custom_refresh(
+        self,
+        changed: list[Path],
+        new: list[Path],
+        removed: list[str],
+    ) -> None:
+        """Apply changes for custom providers."""
+        for path in changed + new:
+            provider = self.load_provider(path.stem, is_builtin=False)
+            if provider:
+                self.custom_providers[provider.id] = provider
+
+        for path_str in removed:
+            provider_id = Path(path_str).stem
+            self.custom_providers.pop(provider_id, None)
+
+    def _apply_active_model_refresh(self) -> None:
+        """Apply changes for active model."""
+        active_model = self.load_active_model()
+        if active_model:
+            self.active_model = active_model
+
     async def list_provider_info(self) -> List[ProviderInfo]:
+        self._refresh_if_stale()
         tasks = [
             provider.get_info() for provider in self.builtin_providers.values()
         ]
@@ -584,6 +728,7 @@ class ProviderManager:
             provider_path = self.custom_path / f"{provider_id}.json"
             if provider_path.exists():
                 os.remove(provider_path)
+            self._file_mtimes.pop(str(provider_path), None)
             return True
         return False
 
@@ -741,6 +886,7 @@ class ProviderManager:
             os.chmod(provider_path, 0o600)
         except OSError:
             pass
+        self._update_mtime(provider_path)
 
     def overwrite_provider_payload(self, payload: Dict) -> Provider:
         """Replace a tenant provider with the supplied payload.
@@ -819,6 +965,7 @@ class ProviderManager:
             os.chmod(active_path, 0o600)
         except OSError:
             pass
+        self._update_mtime(active_path)
 
     def load_active_model(self) -> ModelSlotConfig | None:
         """Load the active provider/model configuration from disk.
@@ -899,68 +1046,79 @@ class ProviderManager:
     def _migrate_legacy_providers(self):
         """Migrate from legacy providers.json format to the new structure."""
         legacy_path = SECRET_DIR / "providers.json"
-        if legacy_path.exists() and legacy_path.is_file():
-            with open(legacy_path, "r", encoding="utf-8") as f:
-                legacy_data = json.load(f)
-            builtin_providers = legacy_data.get("providers", {})
-            custom_providers = legacy_data.get("custom_providers", {})
-            active_model = legacy_data.get("active_llm", {})
-            # Migrate built-in providers
-            for provider_id, config in builtin_providers.items():
-                provider = self.get_provider(provider_id)
-                if not provider:
-                    logger.warning(
-                        "Legacy provider '%s' not found in"
-                        " registry, skipping migration for this provider.",
-                        provider_id,
-                    )
-                    continue
-                if "api_key" in config:
-                    provider.api_key = config["api_key"]
-                if "extra_models" in config:
-                    provider.extra_models = [
-                        ModelInfo.model_validate(model)
-                        for model in config["extra_models"]
-                    ]
-                if not provider.freeze_url and "base_url" in config:
-                    provider.base_url = config["base_url"]
-                self._save_provider(provider, is_builtin=True)
-            # Migrate custom providers
-            for provider_id, data in custom_providers.items():
-                custom_provider = OpenAIProvider(
-                    id=provider_id,
-                    name=data.get("name", provider_id),
-                    base_url=data.get("base_url", ""),
-                    api_key=data.get("api_key", ""),
-                    is_custom=True,
-                )
-                if "models" in data:
-                    # migrate models to extra_models field
-                    custom_provider.extra_models = [
-                        ModelInfo.model_validate(model)
-                        for model in data["models"]
-                    ]
-                if "chat_model" in data:
-                    custom_provider.chat_model = data["chat_model"]
-                self._save_provider(custom_provider, is_builtin=False)
-            # Migrate active model
-            if active_model:
-                try:
-                    self.active_model = ModelSlotConfig.model_validate(
-                        active_model,
-                    )
-                    self.save_active_model(self.active_model)
-                except Exception:
-                    logger.warning(
-                        "Failed to migrate active model, using default.",
-                    )
-            # Remove legacy file after migration
-            try:
-                os.remove(legacy_path)
-            except Exception:
+        if not legacy_path.exists() or not legacy_path.is_file():
+            return
+
+        with open(legacy_path, "r", encoding="utf-8") as f:
+            legacy_data = json.load(f)
+
+        self._migrate_builtin_providers(legacy_data.get("providers", {}))
+        self._migrate_custom_providers(legacy_data.get("custom_providers", {}))
+        self._migrate_active_model_config(legacy_data.get("active_llm", {}))
+
+        try:
+            os.remove(legacy_path)
+        except Exception:
+            logger.warning(
+                "Failed to remove legacy providers.json after migration.",
+            )
+
+    def _migrate_builtin_providers(self, builtin_providers: dict) -> None:
+        """Migrate built-in providers from legacy format."""
+        for provider_id, config in builtin_providers.items():
+            provider = self.get_provider(provider_id)
+            if not provider:
                 logger.warning(
-                    "Failed to remove legacy providers.json after migration.",
+                    "Legacy provider '%s' not found in registry, skipping.",
+                    provider_id,
                 )
+                continue
+            self._apply_builtin_provider_config(provider, config)
+            self._save_provider(provider, is_builtin=True)
+
+    def _apply_builtin_provider_config(
+        self,
+        provider: Provider,
+        config: dict,
+    ) -> None:
+        """Apply legacy config to a built-in provider."""
+        if "api_key" in config:
+            provider.api_key = config["api_key"]
+        if "extra_models" in config:
+            provider.extra_models = [
+                ModelInfo.model_validate(model)
+                for model in config["extra_models"]
+            ]
+        if not provider.freeze_url and "base_url" in config:
+            provider.base_url = config["base_url"]
+
+    def _migrate_custom_providers(self, custom_providers: dict) -> None:
+        """Migrate custom providers from legacy format."""
+        for provider_id, data in custom_providers.items():
+            custom_provider = OpenAIProvider(
+                id=provider_id,
+                name=data.get("name", provider_id),
+                base_url=data.get("base_url", ""),
+                api_key=data.get("api_key", ""),
+                is_custom=True,
+            )
+            if "models" in data:
+                custom_provider.extra_models = [
+                    ModelInfo.model_validate(model) for model in data["models"]
+                ]
+            if "chat_model" in data:
+                custom_provider.chat_model = data["chat_model"]
+            self._save_provider(custom_provider, is_builtin=False)
+
+    def _migrate_active_model_config(self, active_model: dict) -> None:
+        """Migrate active model from legacy format."""
+        if not active_model:
+            return
+        try:
+            self.active_model = ModelSlotConfig.model_validate(active_model)
+            self.save_active_model(self.active_model)
+        except Exception:
+            logger.warning("Failed to migrate active model, using default.")
 
     def _init_from_storage(self):
         """Initialize all providers and active model from disk storage."""

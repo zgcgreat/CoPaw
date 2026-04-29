@@ -17,4 +17,6 @@ def test_local_model_cli_commands_report_unsupported() -> None:
         result = runner.invoke(models_group, args)
 
         assert result.exit_code == 1
-        assert "Local model management is no longer supported." in result.output
+        assert (
+            "Local model management is no longer supported." in result.output
+        )

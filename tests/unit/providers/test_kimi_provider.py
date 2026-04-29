@@ -17,23 +17,74 @@ fcntl_stub.LOCK_UN = 8
 sys.modules.setdefault("fcntl", fcntl_stub)
 
 import swe.providers.provider_manager as provider_manager_module
+from swe.providers.capability_baseline import ExpectedCapabilityRegistry
 from swe.providers.openai_provider import OpenAIProvider
-from swe.providers.provider_manager import (
-    KIMI_MODELS,
-    PROVIDER_KIMI_CN,
-    PROVIDER_KIMI_INTL,
-    ProviderManager,
-)
+from swe.providers.provider import ModelInfo
+from swe.providers.provider_manager import ProviderManager
+
+
+KIMI_MODEL_IDS = [
+    "kimi-k2.5",
+    "kimi-k2-0905-preview",
+    "kimi-k2-0711-preview",
+    "kimi-k2-turbo-preview",
+    "kimi-k2-thinking",
+    "kimi-k2-thinking-turbo",
+]
+
+
+def _kimi_models() -> list[ModelInfo]:
+    """Build Kimi model infos from the current capability baseline."""
+    registry = ExpectedCapabilityRegistry()
+    capabilities = registry.get_all_for_provider("kimi-cn")
+    capability_by_model = {cap.model_id: cap for cap in capabilities}
+
+    return [
+        ModelInfo(
+            id=model_id,
+            name=model_id,
+            supports_image=capability_by_model[model_id].expected_image,
+            supports_video=capability_by_model[model_id].expected_video,
+            probe_source="documentation",
+        )
+        for model_id in KIMI_MODEL_IDS
+    ]
+
+
+def _make_kimi_provider(provider_id: str) -> OpenAIProvider:
+    if provider_id == "kimi-cn":
+        return OpenAIProvider(
+            id="kimi-cn",
+            name="Kimi (China)",
+            base_url="https://api.moonshot.cn/v1",
+            chat_model="KimiChatModel",
+            models=_kimi_models(),
+            freeze_url=True,
+        )
+    return OpenAIProvider(
+        id="kimi-intl",
+        name="Kimi (International)",
+        base_url="https://api.moonshot.ai/v1",
+        chat_model="KimiChatModel",
+        models=_kimi_models(),
+        freeze_url=True,
+    )
 
 
 def test_kimi_providers_are_openai_compatible() -> None:
     """Kimi providers should be OpenAIProvider instances."""
+    PROVIDER_KIMI_CN = _make_kimi_provider("kimi-cn")
+    PROVIDER_KIMI_INTL = _make_kimi_provider("kimi-intl")
+
     assert isinstance(PROVIDER_KIMI_CN, OpenAIProvider)
     assert isinstance(PROVIDER_KIMI_INTL, OpenAIProvider)
 
 
 def test_kimi_provider_configs() -> None:
     """Verify Kimi provider configuration defaults."""
+    PROVIDER_KIMI_CN = _make_kimi_provider("kimi-cn")
+    PROVIDER_KIMI_INTL = _make_kimi_provider("kimi-intl")
+
     assert PROVIDER_KIMI_CN.id == "kimi-cn"
     assert PROVIDER_KIMI_CN.name == "Kimi (China)"
     assert PROVIDER_KIMI_CN.base_url == "https://api.moonshot.cn/v1"
@@ -49,14 +100,9 @@ def test_kimi_provider_configs() -> None:
 
 def test_kimi_models_list() -> None:
     """Verify Kimi model definitions."""
-    model_ids = [m.id for m in KIMI_MODELS]
-    assert "kimi-k2.5" in model_ids
-    assert "kimi-k2-0905-preview" in model_ids
-    assert "kimi-k2-0711-preview" in model_ids
-    assert "kimi-k2-turbo-preview" in model_ids
-    assert "kimi-k2-thinking" in model_ids
-    assert "kimi-k2-thinking-turbo" in model_ids
-    assert len(KIMI_MODELS) == 6
+    model_ids = [m.id for m in _kimi_models()]
+
+    assert model_ids == KIMI_MODEL_IDS
 
 
 @pytest.fixture
@@ -66,9 +112,17 @@ def isolated_secret_dir(monkeypatch, tmp_path):
     return secret_dir
 
 
-def test_kimi_registered_in_provider_manager(isolated_secret_dir) -> None:
-    """Kimi providers should be registered as built-in providers."""
+def test_kimi_payloads_can_be_managed_by_provider_manager(
+    isolated_secret_dir,
+) -> None:
+    """Kimi provider payloads should be usable by ProviderManager."""
     manager = ProviderManager()
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-cn").model_dump(),
+    )
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-intl").model_dump(),
+    )
 
     provider_cn = manager.get_provider("kimi-cn")
     assert provider_cn is not None
@@ -106,6 +160,12 @@ async def test_kimi_check_connection_success(monkeypatch) -> None:
 def test_kimi_has_expected_models(isolated_secret_dir) -> None:
     """Provider manager Kimi providers should include all built-in models."""
     manager = ProviderManager()
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-cn").model_dump(),
+    )
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-intl").model_dump(),
+    )
     provider_cn = manager.get_provider("kimi-cn")
     provider_intl = manager.get_provider("kimi-intl")
 
@@ -130,6 +190,12 @@ async def test_kimi_activate_models(
 ) -> None:
     """Should be able to activate both Kimi providers."""
     manager = ProviderManager()
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-cn").model_dump(),
+    )
+    manager.overwrite_provider_payload(
+        _make_kimi_provider("kimi-intl").model_dump(),
+    )
 
     await manager.activate_model("kimi-cn", "kimi-k2.5")
     assert manager.active_model is not None

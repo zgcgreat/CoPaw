@@ -67,7 +67,8 @@ def default_config():
             mode="cloud_first",
             slots={
                 "cloud": ModelSlot(
-                    provider_id="default-provider", model="gpt-3.5-turbo"
+                    provider_id="default-provider",
+                    model="gpt-3.5-turbo",
                 ),
             },
         ),
@@ -105,7 +106,9 @@ class TestTenantModelManagerExists:
     """Tests for exists method."""
 
     def test_exists_returns_true_for_existing_config(
-        self, tmp_path, sample_config
+        self,
+        tmp_path,
+        sample_config,
     ):
         """Test exists returns True when config file exists."""
         with patch("swe.tenant_models.manager.SECRET_DIR", tmp_path):
@@ -132,7 +135,9 @@ class TestTenantModelManagerSave:
     """Tests for save method."""
 
     def test_save_creates_directory_if_not_exists(
-        self, tmp_path, sample_config
+        self,
+        tmp_path,
+        sample_config,
     ):
         """Test save creates the tenant directory if it doesn't exist."""
         with patch("swe.tenant_models.manager.SECRET_DIR", tmp_path):
@@ -265,7 +270,9 @@ class TestTenantModelManagerInvalidateCache:
     """Tests for invalidate_cache method."""
 
     def test_invalidate_cache_for_specific_tenant(
-        self, tmp_path, sample_config
+        self,
+        tmp_path,
+        sample_config,
     ):
         """Test invalidating cache for a specific tenant."""
         with patch("swe.tenant_models.manager.SECRET_DIR", tmp_path):
@@ -333,12 +340,14 @@ class TestTenantModelManagerEdgeCases:
             config_path.write_text("not valid json")
 
             with pytest.raises(
-                Exception
+                Exception,
             ):  # Could be JSON decode error or validation error
                 manager.load(tenant_id)
 
     def test_save_with_special_characters_in_tenant_id(
-        self, tmp_path, sample_config
+        self,
+        tmp_path,
+        sample_config,
     ):
         """Test save handles tenant IDs with special characters."""
         with patch("swe.tenant_models.manager.SECRET_DIR", tmp_path):

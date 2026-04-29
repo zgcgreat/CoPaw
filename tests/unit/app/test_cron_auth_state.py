@@ -275,7 +275,7 @@ async def test_configure_cron_auth_returns_reused_status(monkeypatch):
 
     response = await auth_router.configure_cron_auth(
         auth_router.CronAuthConfigureRequest(
-            cookie="foo=bar; com.cmb.dw.rtl.sso.token=token-from-cookie"
+            cookie="foo=bar; com.cmb.dw.rtl.sso.token=token-from-cookie",
         ),
         request=SimpleNamespace(),
     )
@@ -323,7 +323,7 @@ async def test_configure_cron_auth_returns_refreshed_status(monkeypatch):
 
     response = await auth_router.configure_cron_auth(
         auth_router.CronAuthConfigureRequest(
-            cookie="foo=bar; com.cmb.dw.rtl.sso.token=token-from-cookie"
+            cookie="foo=bar; com.cmb.dw.rtl.sso.token=token-from-cookie",
         ),
         request=SimpleNamespace(),
     )

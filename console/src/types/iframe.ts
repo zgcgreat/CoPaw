@@ -63,6 +63,8 @@ export interface IframeUserDataMessage {
     manager?: boolean | string;
     /** 自定义 headers 数组，每项包含 headerName 和 headerValue */
     auth?: AuthHeaderItem[];
+    /** 分行ID */
+    bbkId?: string;
     /** 其他任意参数 */
     [key: string]: unknown;
   };

@@ -31,9 +31,6 @@ import VoiceTranscriptionPage from "../../pages/Settings/VoiceTranscription";
 import AgentsPage from "../../pages/Settings/Agents";
 import AnalyticsPage from "../../pages/Analytics";
 import InstancePage from "../../pages/Instance";
-// ==================== 测试页面 (用于验证新功能) ====================
-import TestDownloadCardPage from "../../pages/TestDownloadCard";
-// ==================== 测试页面结束 ====================
 
 const { Content } = Layout;
 
@@ -62,6 +59,7 @@ const pathToKey: Record<string, string> = {
   "/analytics/sessions": "analytics-sessions",
   "/analytics/messages": "analytics-messages",
   "/analytics/traces": "analytics-traces",
+  "/analytics/business-overview": "analytics-business-overview",
   "/instance/overview": "instance-overview",
   "/instance/instances": "instance-instances",
   "/instance/allocations": "instance-allocations",
@@ -127,9 +125,6 @@ export default function MainLayout() {
               />
               <Route path="/analytics/*" element={<AnalyticsPage />} />
               <Route path="/instance/*" element={<InstancePage />} />
-              {/* ==================== 测试路由 ==================== */}
-              <Route path="/test-download-card" element={<TestDownloadCardPage />} />
-              {/* ==================== 测试路由结束 ==================== */}
             </Routes>
           </div>
         </Content>

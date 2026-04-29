@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { featuredCasesApi } from "@/api/modules/featuredCases";
-import type { FeaturedCase, FeaturedCaseCreate } from "@/api/types/featuredCases";
+import type { FeaturedCase, FeaturedCaseCreate, FeaturedCaseUpdate } from "@/api/types/featuredCases";
 
 export function useFeaturedCases() {
   const [cases, setCases] = useState<FeaturedCase[]>([]);
@@ -34,9 +34,9 @@ export function useFeaturedCases() {
   }, []);
 
   const updateCase = useCallback(
-    async (caseId: string, caseItem: Partial<FeaturedCase>) => {
+    async (id: number, caseItem: Partial<FeaturedCaseUpdate>) => {
       try {
-        const result = await featuredCasesApi.adminUpdateCase(caseId, caseItem);
+        const result = await featuredCasesApi.adminUpdateCase(id, caseItem);
         return result.data;
       } catch (error) {
         console.error("Failed to update case:", error);
@@ -46,9 +46,9 @@ export function useFeaturedCases() {
     []
   );
 
-  const deleteCase = useCallback(async (caseId: string) => {
+  const deleteCase = useCallback(async (id: number) => {
     try {
-      await featuredCasesApi.adminDeleteCase(caseId);
+      await featuredCasesApi.adminDeleteCase(id);
     } catch (error) {
       console.error("Failed to delete case:", error);
       throw error;

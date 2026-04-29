@@ -96,10 +96,7 @@ def create_agent_scoped_router() -> APIRouter:
     scoped_agent_router.routes = [
         route
         for route in scoped_agent_router.routes
-        if not (
-            isinstance(route, APIRoute)
-            and route.path == "/agent/init"
-        )
+        if not (isinstance(route, APIRoute) and route.path == "/agent/init")
     ]
 
     # Include all agent-specific sub-routers (they keep their own prefixes)

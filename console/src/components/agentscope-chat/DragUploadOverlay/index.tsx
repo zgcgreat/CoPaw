@@ -55,7 +55,7 @@ export default function DragUploadOverlay({
           </div>
           <div className="drag-upload-title">点击或拖放文件到该区域</div>
           <div className="drag-upload-desc">
-            支持pdf，ppt，doc，excel，png，jpg等格式
+            支持txt, md, png，jpg等格式
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 /**
- * Featured Cases API module (simplified - merged tables)
+ * Featured Cases API module (simplified - no case_id)
  */
 import { request } from "../request";
 import type {
@@ -14,9 +14,9 @@ export const featuredCasesApi = {
   /** Get cases for current context (from X-Source-Id and X-Bbk-Id headers) */
   listCases: () => request<FeaturedCaseDisplay[]>("/featured-cases"),
 
-  /** Get case detail by ID */
-  getCaseDetail: (caseId: string) =>
-    request<FeaturedCase>(`/featured-cases/${encodeURIComponent(caseId)}`),
+  /** Get case detail by id */
+  getCaseDetail: (id: number) =>
+    request<FeaturedCase>(`/featured-cases/${id}`),
 
   // ==================== Admin endpoints ====================
 
@@ -45,9 +45,9 @@ export const featuredCasesApi = {
     ),
 
   /** Admin: update case */
-  adminUpdateCase: (caseId: string, caseItem: FeaturedCaseUpdate) =>
+  adminUpdateCase: (id: number, caseItem: FeaturedCaseUpdate) =>
     request<{ success: boolean; data: FeaturedCase }>(
-      `/featured-cases/admin/cases/${encodeURIComponent(caseId)}`,
+      `/featured-cases/admin/cases/${id}`,
       {
         method: "PUT",
         body: JSON.stringify(caseItem),
@@ -55,9 +55,9 @@ export const featuredCasesApi = {
     ),
 
   /** Admin: delete case */
-  adminDeleteCase: (caseId: string) =>
+  adminDeleteCase: (id: number) =>
     request<{ success: boolean }>(
-      `/featured-cases/admin/cases/${encodeURIComponent(caseId)}`,
+      `/featured-cases/admin/cases/${id}`,
       {
         method: "DELETE",
       }

@@ -220,7 +220,6 @@ export interface TimelineEvent {
   trigger_reason: string | null;
   tool_name: string | null;
   mcp_server: string | null;
-  skill_weight: number | null;
   model_name: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
@@ -258,10 +257,12 @@ export const tracingApi = {
   getOverview: async (
     startDate?: string,
     endDate?: string,
+    sourceId?: string,
   ): Promise<OverviewStats> => {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
     return request(`/tracing/overview?${params.toString()}`);
   },
 
@@ -272,6 +273,7 @@ export const tracingApi = {
       user_id?: string;
       start_date?: string;
       end_date?: string;
+      source_id?: string;
     },
   ): Promise<{
     items: UserListItem[];
@@ -284,7 +286,7 @@ export const tracingApi = {
     params.append("page_size", pageSize.toString());
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && value !== "all") params.append(key, value);
       });
     }
     return request(`/tracing/users?${params.toString()}`);
@@ -294,10 +296,12 @@ export const tracingApi = {
     userId: string,
     startDate?: string,
     endDate?: string,
+    sourceId?: string,
   ): Promise<UserStats> => {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
     const query = params.toString() ? `?${params.toString()}` : "";
     return request(`/tracing/users/${encodeURIComponent(userId)}${query}`);
   },
@@ -311,6 +315,7 @@ export const tracingApi = {
       status?: string;
       start_date?: string;
       end_date?: string;
+      source_id?: string;
     },
   ): Promise<{
     items: TraceListItem[];
@@ -336,10 +341,12 @@ export const tracingApi = {
   getModelUsage: async (
     startDate?: string,
     endDate?: string,
+    sourceId?: string,
   ): Promise<{ models: ModelUsage[] }> => {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
     const query = params.toString() ? `?${params.toString()}` : "";
     return request(`/tracing/models${query}`);
   },
@@ -347,10 +354,12 @@ export const tracingApi = {
   getToolUsage: async (
     startDate?: string,
     endDate?: string,
+    sourceId?: string,
   ): Promise<{ tools: ToolUsage[] }> => {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
     const query = params.toString() ? `?${params.toString()}` : "";
     return request(`/tracing/tools${query}`);
   },
@@ -363,6 +372,7 @@ export const tracingApi = {
       session_id?: string;
       start_date?: string;
       end_date?: string;
+      sourceId?: string;
     },
   ): Promise<{
     items: SessionListItem[];
@@ -385,10 +395,12 @@ export const tracingApi = {
     sessionId: string,
     startDate?: string,
     endDate?: string,
+    sourceId?: string,
   ): Promise<SessionStats> => {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
     const query = params.toString() ? `?${params.toString()}` : "";
     return request(
       `/tracing/sessions/${encodeURIComponent(sessionId)}${query}`,
@@ -404,6 +416,7 @@ export const tracingApi = {
       start_date?: string;
       end_date?: string;
       query?: string;
+      sourceId?: string;
     },
   ): Promise<{
     items: UserMessageItem[];
@@ -429,6 +442,7 @@ export const tracingApi = {
       start_date?: string;
       end_date?: string;
       query?: string;
+      sourceId?: string;
     },
     format: string = "xlsx",
   ): Promise<Blob> => {
@@ -464,5 +478,69 @@ export const tracingApi = {
   // Timeline with skill hierarchy
   getTraceTimeline: async (traceId: string): Promise<TraceDetailWithTimeline> => {
     return request(`/tracing/traces/${traceId}/timeline`);
+  },
+
+  // Business Overview APIs
+  getSources: async (
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{ sources: string[] }> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request(`/tracing/sources${query}`);
+  },
+
+  getChannelDistribution: async (
+    sourceId?: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{
+    platformUserDistribution: { name: string; value: number }[];
+    platformCallDistribution: { name: string; value: number }[];
+    totalPlatforms: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (sourceId) params.append("source_id", sourceId);
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request(`/tracing/channel-distribution${query}`);
+  },
+
+  getGrowthStats: async (
+    startDate: string,
+    endDate: string,
+    timeRange: string = "day",
+    sourceId?: string,
+  ): Promise<{
+    callsGrowth: number;
+    tokensGrowth: number;
+    sessionGrowth: number;
+    userGrowth: number;
+    platformGrowth: number;
+  }> => {
+    const params = new URLSearchParams();
+    params.append("start_date", startDate);
+    params.append("end_date", endDate);
+    params.append("time_range", timeRange);
+    if (sourceId) params.append("source_id", sourceId);
+    return request(`/tracing/growth-stats?${params.toString()}`);
+  },
+
+  getDailyTrend: async (
+    startDate?: string,
+    endDate?: string,
+    sourceId?: string,
+  ): Promise<{
+    trendData: { date: string; calls: number; tokens: number; users: number }[];
+  }> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    if (sourceId) params.append("source_id", sourceId);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request(`/tracing/daily-trend${query}`);
   },
 };

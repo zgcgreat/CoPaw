@@ -4,6 +4,7 @@ import UsersPage from "./Users";
 import SessionsPage from "./Sessions";
 import MessagesPage from "./Messages";
 import TracesPage from "./Traces";
+import BusinessOverviewPage from "./BusinessOverview";
 
 export default function AnalyticsPage() {
   return (
@@ -14,6 +15,7 @@ export default function AnalyticsPage() {
       <Route path="sessions" element={<SessionsPage />} />
       <Route path="messages" element={<MessagesPage />} />
       <Route path="traces" element={<TracesPage />} />
+      <Route path="business-overview" element={<BusinessOverviewPage />} />
     </Routes>
   );
 }

@@ -178,6 +178,7 @@ async function handleUserDataMessage(
     manager: toBoolean(message.data.manager),
     authHeaders,
     parentOrigin: origin,
+    bbk: message.data.bbkId ?? null,
   });
 
   store.markInitialized();

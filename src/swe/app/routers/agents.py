@@ -548,7 +548,7 @@ async def list_agent_files(
     try:
         workspace = await manager.get_agent(
             agentId,
-            tenant_id=getattr(request.state, "tenant_id", None),
+            tenant_id=_request_effective_tenant_id(request),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -582,7 +582,7 @@ async def read_agent_file(
     try:
         workspace = await manager.get_agent(
             agentId,
-            tenant_id=getattr(request.state, "tenant_id", None),
+            tenant_id=_request_effective_tenant_id(request),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -619,7 +619,7 @@ async def write_agent_file(
     try:
         workspace = await manager.get_agent(
             agentId,
-            tenant_id=getattr(request.state, "tenant_id", None),
+            tenant_id=_request_effective_tenant_id(request),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -649,7 +649,7 @@ async def list_agent_memory(
     try:
         workspace = await manager.get_agent(
             agentId,
-            tenant_id=getattr(request.state, "tenant_id", None),
+            tenant_id=_request_effective_tenant_id(request),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

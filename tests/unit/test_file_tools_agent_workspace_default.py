@@ -37,4 +37,6 @@ async def test_write_and_append_file_default_to_workspace_dir(tmp_path: Path):
             await append_file("note.txt", " world")
 
     # file_io uses UTF-8 BOM for .txt for Windows compatibility.
-    assert (workspace_dir / "note.txt").read_text().lstrip("\ufeff") == "hello world"
+    assert (workspace_dir / "note.txt").read_text().lstrip(
+        "\ufeff",
+    ) == "hello world"

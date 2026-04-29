@@ -42,10 +42,6 @@ class Span(BaseModel):
     span_id: str = Field(description="Unique span identifier")
     trace_id: str = Field(description="Parent trace identifier")
     source_id: str = Field(description="Source identifier for data isolation")
-    parent_span_id: Optional[str] = Field(
-        default=None,
-        description="Parent span identifier for nested operations",
-    )
     name: str = Field(description="Span name/operation name")
     event_type: EventType = Field(description="Type of event")
     start_time: datetime = Field(description="Start timestamp")
@@ -95,10 +91,6 @@ class Span(BaseModel):
     error: Optional[str] = Field(
         default=None,
         description="Error message if failed",
-    )
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="Additional metadata",
     )
 
 

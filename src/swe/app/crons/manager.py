@@ -18,6 +18,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from ..channels.schema import DEFAULT_CHANNEL
 from ..tenant_context import bind_tenant_context
 from ..console_push_store import append as push_store_append
+from ...config.llm_workload import LLM_WORKLOAD_CRON, bind_llm_workload
 from .coordination import (
     CoordinationConfig,
     CronCoordination,
@@ -1007,10 +1008,11 @@ class CronManager:  # pylint: disable=too-many-public-methods
         st.last_status = "running"
         st.last_error = None
         self._states[job_id] = st
-        task = asyncio.create_task(
-            self._execute_once(job),
-            name=f"c ron-run-{job_id}",
-        )
+        with bind_llm_workload(LLM_WORKLOAD_CRON):
+            task = asyncio.create_task(
+                self._execute_once(job),
+                name=f"cron-run-{job_id}",
+            )
         task.add_done_callback(lambda t: self._task_done_cb(t, job))
 
     async def mark_task_read(self, job_id: str, user_id: str) -> bool:
@@ -2023,10 +2025,12 @@ class CronManager:  # pylint: disable=too-many-public-methods
                 self._states[job_id] = st
                 return
 
-            await self._execute_once(job)
+            with bind_llm_workload(LLM_WORKLOAD_CRON):
+                await self._execute_once(job)
         else:
             # No coordination - execute directly
-            await self._execute_once(job)
+            with bind_llm_workload(LLM_WORKLOAD_CRON):
+                await self._execute_once(job)
 
         # refresh next_run
         if self._scheduler is not None:
@@ -2080,9 +2084,12 @@ class CronManager:  # pylint: disable=too-many-public-methods
             ):
                 tenant_id = self._runner._workspace.tenant_id
 
-            with bind_tenant_context(
-                tenant_id=tenant_id,
-                workspace_dir=workspace_dir,
+            with (
+                bind_tenant_context(
+                    tenant_id=tenant_id,
+                    workspace_dir=workspace_dir,
+                ),
+                bind_llm_workload(LLM_WORKLOAD_CRON),
             ):
                 await self._run_heartbeat_once(workspace_dir)
         except asyncio.CancelledError:

@@ -109,3 +109,4 @@ src/.hypothesis/
 # github actions
 .github/
 .gitnexus
+.playwright-mcp

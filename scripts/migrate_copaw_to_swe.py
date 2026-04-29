@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Migrate ~/.copaw to ~/.swe with backup support.
 
@@ -34,7 +35,7 @@ def migrate_copaw_to_swe() -> bool:
     # Check if target already exists
     if new_dir.exists():
         logger.warning(
-            "~/.swe already exists. Please manually migrate data from ~/.copaw."
+            "~/.swe already exists. Please manually migrate data from ~/.copaw.",
         )
         return False
 
@@ -53,7 +54,9 @@ def migrate_copaw_to_swe() -> bool:
         logger.info(f"Migrating {old_secret_dir} -> {new_secret_dir}")
         try:
             shutil.move(str(old_secret_dir), str(new_secret_dir))
-            logger.info(f"Successfully migrated ~/.copaw.secret to ~/.swe.secret")
+            logger.info(
+                f"Successfully migrated ~/.copaw.secret to ~/.swe.secret",
+            )
         except Exception as e:
             logger.error(f"Failed to migrate ~/.copaw.secret: {e}")
             # Don't fail the whole migration if only secret fails
@@ -72,15 +75,17 @@ def check_and_migrate() -> None:
 
     # Only migrate if old exists and new doesn't
     if old_dir.exists() and not new_dir.exists():
-        logger.info("Detected legacy ~/.copaw directory. Migrating to ~/.swe...")
+        logger.info(
+            "Detected legacy ~/.copaw directory. Migrating to ~/.swe...",
+        )
         if migrate_copaw_to_swe():
             logger.info(
                 "Migration complete. Your data is now in ~/.swe. "
-                "You can safely remove the backup after verification."
+                "You can safely remove the backup after verification.",
             )
         else:
             logger.warning(
-                "Migration failed. Please manually copy data from ~/.copaw to ~/.swe"
+                "Migration failed. Please manually copy data from ~/.copaw to ~/.swe",
             )
 
 

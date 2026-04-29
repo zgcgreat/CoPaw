@@ -16,17 +16,13 @@
     "allowSyntheticDefaultImports": true,
 
     "strict": true,
-    // ==================== ts检查变更 (Kun He) ====================
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "erasableSyntaxOnly": false,
-    // ==================== ts检查变更结束 ====================
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    // ==================== ts检查变更 (Kun He) ====================
     "noImplicitAny": false,
     "strictNullChecks": false,
-    // ==================== ts检查变更结束 ====================
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

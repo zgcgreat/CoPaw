@@ -1,5 +1,7 @@
 # CoPaw 引导文案与精选案例配置管理设计文档
 
+> **注意**: 本文档已过时。请参考 [2026-04-27-featured-case-simplify-design.md](./2026-04-27-featured-case-simplify-design.md) 获取最新设计。主要变更：移除了 `case_id` 字段，简化为使用数据库 `id` 作为唯一标识。
+
 ## 1. 目标与范围
 
 本方案的目标是为 CoPaw 提供基于 `source_id + bbk_id` 维度的动态配置能力，支持：

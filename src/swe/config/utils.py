@@ -873,7 +873,8 @@ async def list_logical_tenant_ids(
             return []
         rows = await store.get_by_source(source_id)
         return sorted(
-            tid for tid in {row["tenant_id"] for row in rows}
+            tid
+            for tid in {row["tenant_id"] for row in rows}
             if tid != "default"
         )
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Featured case store (simplified - merged tables)."""
+"""Featured case store (simplified - no case_id)."""
 
 import json
 import logging
@@ -29,29 +29,57 @@ class FeaturedCaseStore:
         source_id: str,
         bbk_id: Optional[str] = None,
     ) -> list[dict]:
-        """Get cases for a specific dimension.
+        """Get cases for display on chat page (top 5).
 
-        Exact match: source_id=X AND bbk_id=Y
-        Returns empty list if no match.
+        Logic:
+        - bbk_id is None or "100" (total branch): return all active cases for source_id
+        - bbk_id is non-100: return specified bbk_id cases + default (bbk_id="100") cases,
+          with specified bbk_id cases first
+
+        Limited to top 5 results.
 
         Args:
             source_id: Source identifier
             bbk_id: BBK identifier (optional)
 
         Returns:
-            List of case dicts for display
+            List of case dicts for display (max 5 items)
         """
         if not self._use_db:
             return []
 
-        query = """
-            SELECT case_id, label, value, image_url,
-                   iframe_url, iframe_title, steps, sort_order
-            FROM swe_featured_case
-            WHERE source_id = %s AND bbk_id <=> %s AND is_active = 1
-            ORDER BY sort_order ASC
-        """
-        rows = await self.db.fetch_all(query, (source_id, bbk_id))
+        DEFAULT_BBK_ID = "100"
+
+        if bbk_id is None or bbk_id == DEFAULT_BBK_ID:
+            # Total branch or no filter - return all active cases for source_id
+            query = """
+                SELECT id, label, value, image_url,
+                       iframe_url, iframe_title, steps, sort_order
+                FROM swe_featured_case
+                WHERE source_id = %s AND is_active = 1
+                ORDER BY sort_order ASC
+                LIMIT 5
+            """
+            rows = await self.db.fetch_all(query, (source_id,))
+        else:
+            # Query both specified bbk_id and default (bbk_id="100")
+            # Sort: specified bbk_id first, then default
+            query = """
+                SELECT id, label, value, image_url,
+                       iframe_url, iframe_title, steps, sort_order
+                FROM swe_featured_case
+                WHERE source_id = %s
+                  AND (bbk_id <=> %s OR bbk_id <=> %s)
+                  AND is_active = 1
+                ORDER BY
+                    CASE WHEN bbk_id <=> %s THEN 0 ELSE 1 END,
+                    sort_order ASC
+                LIMIT 5
+            """
+            rows = await self.db.fetch_all(
+                query,
+                (source_id, bbk_id, DEFAULT_BBK_ID, bbk_id),
+            )
 
         result = []
         for row in rows:
@@ -72,7 +100,7 @@ class FeaturedCaseStore:
 
             result.append(
                 {
-                    "id": row["case_id"],
+                    "id": row["id"],
                     "label": row["label"],
                     "value": row["value"],
                     "image_url": row["image_url"],
@@ -82,11 +110,11 @@ class FeaturedCaseStore:
             )
         return result
 
-    async def get_case_by_id(self, case_id: str) -> Optional[FeaturedCase]:
-        """Get case by case_id (global unique lookup).
+    async def get_case_by_id(self, case_id: int) -> Optional[FeaturedCase]:
+        """Get case by id.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
 
         Returns:
             FeaturedCase if found, None otherwise
@@ -94,7 +122,7 @@ class FeaturedCaseStore:
         if not self._use_db:
             return None
 
-        query = "SELECT * FROM swe_featured_case WHERE case_id = %s"
+        query = "SELECT * FROM swe_featured_case WHERE id = %s"
         row = await self.db.fetch_one(query, (case_id,))
         return self._row_to_case(row) if row else None
 
@@ -107,7 +135,12 @@ class FeaturedCaseStore:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[FeaturedCase], int]:
-        """List cases for a specific source_id with optional bbk_id filter.
+        """List cases for a specific source_id.
+
+        Logic:
+        - bbk_id is None or "100" (total branch): return all cases for source_id
+        - bbk_id is non-100: return specified bbk_id cases + default (bbk_id="100") cases,
+          with specified bbk_id cases first
 
         Args:
             source_id: Source identifier (required)
@@ -121,33 +154,45 @@ class FeaturedCaseStore:
         if not self._use_db:
             return [], 0
 
-        where_clauses = ["source_id = %s"]
-        params: list = [source_id]
+        DEFAULT_BBK_ID = "100"
 
-        if bbk_id is not None:
-            where_clauses.append("bbk_id <=> %s")
-            params.append(bbk_id)
+        if bbk_id is None or bbk_id == DEFAULT_BBK_ID:
+            # Total branch or no filter - return all cases for source_id
+            where_sql = "source_id = %s"
+            where_params: list = [source_id]
+            order_sql = "sort_order ASC, created_at DESC"
+            order_params: list = []
+        else:
+            # Query both specified bbk_id and default (bbk_id="100")
+            where_sql = "source_id = %s AND (bbk_id <=> %s OR bbk_id <=> %s)"
+            where_params = [source_id, bbk_id, DEFAULT_BBK_ID]
+            # Sort: specified bbk_id first, then default
+            order_sql = "CASE WHEN bbk_id <=> %s THEN 0 ELSE 1 END, sort_order ASC, created_at DESC"
+            order_params = [bbk_id]
 
-        where_sql = " AND ".join(where_clauses)
-
+        # Count query only uses where_params
         count_query = f"SELECT COUNT(*) as total FROM swe_featured_case WHERE {where_sql}"
-        count_row = await self.db.fetch_one(count_query, tuple(params))
+        count_row = await self.db.fetch_one(count_query, tuple(where_params))
         total = count_row["total"] if count_row else 0
 
         offset = (page - 1) * page_size
         query = f"""
             SELECT * FROM swe_featured_case
             WHERE {where_sql}
-            ORDER BY sort_order ASC, created_at DESC
+            ORDER BY {order_sql}
             LIMIT %s OFFSET %s
         """
-        params.extend([page_size, offset])
+        params = where_params + order_params + [page_size, offset]
         rows = await self.db.fetch_all(query, tuple(params))
         cases = [self._row_to_case(row) for row in rows]
         return cases, total
 
     async def create_case(self, case: FeaturedCase) -> FeaturedCase:
-        """Create case.
+        """Create case with auto-increment sort_order.
+
+        Sort order is automatically set to max(sort_order) + 1 for the
+        current dimension (source_id + bbk_id).
+        First case starts at sort_order=1.
 
         Args:
             case: FeaturedCase to create
@@ -156,6 +201,19 @@ class FeaturedCaseStore:
             Created FeaturedCase
         """
         if self._use_db:
+            # Get max sort_order for current dimension
+            # COALESCE with 0 means first case gets sort_order=1
+            max_query = """
+                SELECT COALESCE(MAX(sort_order), 0) as max_order
+                FROM swe_featured_case
+                WHERE source_id = %s AND bbk_id <=> %s
+            """
+            max_row = await self.db.fetch_one(
+                max_query,
+                (case.source_id, case.bbk_id),
+            )
+            next_order = (max_row["max_order"] if max_row else 0) + 1
+
             steps_json = (
                 json.dumps([s.model_dump() for s in case.steps])
                 if case.steps
@@ -163,31 +221,31 @@ class FeaturedCaseStore:
             )
             query = """
                 INSERT INTO swe_featured_case
-                    (source_id, bbk_id, case_id, label, value, image_url,
+                    (source_id, bbk_id, label, value, image_url,
                      iframe_url, iframe_title, steps, sort_order, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             await self.db.execute(
                 query,
                 (
                     case.source_id,
                     case.bbk_id,
-                    case.case_id,
                     case.label,
                     case.value,
                     case.image_url,
                     case.iframe_url,
                     case.iframe_title,
                     steps_json,
-                    case.sort_order,
+                    next_order,
                     int(case.is_active),
                 ),
             )
+            case.sort_order = next_order
         return case
 
     async def update_case(
         self,
-        case_id: str,
+        case_id: int,
         bbk_id: Optional[str] = None,
         label: Optional[str] = None,
         value: Optional[str] = None,
@@ -201,7 +259,7 @@ class FeaturedCaseStore:
         """Update case.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
             bbk_id: New bbk_id
             label: New label
             value: New value
@@ -258,51 +316,25 @@ class FeaturedCaseStore:
         query = f"""
             UPDATE swe_featured_case
             SET {', '.join(updates)}
-            WHERE case_id = %s
+            WHERE id = %s
         """
         await self.db.execute(query, tuple(params))
         return await self.get_case_by_id(case_id)
 
-    async def delete_case(self, case_id: str) -> bool:
+    async def delete_case(self, case_id: int) -> bool:
         """Delete case.
 
         Args:
-            case_id: Case identifier
+            case_id: Case database id
 
         Returns:
             True if deleted, False otherwise
         """
         if self._use_db:
-            query = "DELETE FROM swe_featured_case WHERE case_id = %s"
+            query = "DELETE FROM swe_featured_case WHERE id = %s"
             result = await self.db.execute(query, (case_id,))
             return result > 0
         return False
-
-    async def check_case_exists(
-        self,
-        source_id: str,
-        case_id: str,
-        bbk_id: Optional[str] = None,
-    ) -> bool:
-        """Check if case exists for given dimension.
-
-        Args:
-            source_id: Source identifier
-            case_id: Case identifier
-            bbk_id: BBK identifier (optional)
-
-        Returns:
-            True if exists, False otherwise
-        """
-        if not self._use_db:
-            return False
-
-        query = """
-            SELECT COUNT(*) as cnt FROM swe_featured_case
-            WHERE source_id = %s AND bbk_id <=> %s AND case_id = %s
-        """
-        row = await self.db.fetch_one(query, (source_id, bbk_id, case_id))
-        return row["cnt"] > 0 if row else False
 
     def _row_to_case(self, row: dict) -> FeaturedCase:
         """Convert row to FeaturedCase.
@@ -325,7 +357,6 @@ class FeaturedCaseStore:
             id=row["id"],
             source_id=row["source_id"],
             bbk_id=row["bbk_id"],
-            case_id=row["case_id"],
             label=row["label"],
             value=row["value"],
             image_url=row["image_url"],

@@ -86,7 +86,9 @@ def _stub_react_agent_tool_exports():
 def test_stdio_launcher_main_applies_limits_before_exec() -> None:
     from swe.app.mcp.stdio_launcher import main
 
-    with patch("swe.app.mcp.stdio_launcher.resource.setrlimit") as mock_setrlimit, patch(
+    with patch(
+        "swe.app.mcp.stdio_launcher.resource.setrlimit",
+    ) as mock_setrlimit, patch(
         "swe.app.mcp.stdio_launcher.os.execvpe",
     ) as mock_execvpe:
         main(
@@ -137,7 +139,10 @@ async def test_runner_wraps_stdio_client_launch_with_tenant_launcher(
             cwd="/tmp/demo",
         )
 
-        with patch("swe.app.runner.runner.StdIOStatefulClient", _FakeStdIOClient):
+        with patch(
+            "swe.app.runner.runner.StdIOStatefulClient",
+            _FakeStdIOClient,
+        ):
             with tenant_context(tenant_id="tenant-a"):
                 client = await _create_mcp_client_with_headers(client_config)
 
@@ -178,7 +183,10 @@ async def test_runner_leaves_stdio_launch_unwrapped_when_policy_disabled(
             cwd="/tmp/demo",
         )
 
-        with patch("swe.app.runner.runner.StdIOStatefulClient", _FakeStdIOClient):
+        with patch(
+            "swe.app.runner.runner.StdIOStatefulClient",
+            _FakeStdIOClient,
+        ):
             with tenant_context(tenant_id="tenant-a"):
                 await _create_mcp_client_with_headers(client_config)
 
@@ -186,7 +194,9 @@ async def test_runner_leaves_stdio_launch_unwrapped_when_policy_disabled(
     assert captured["args"] == ["server.js"]
 
 
-def test_rebuild_mcp_client_reapplies_tenant_launcher(tenant_config_root: Path) -> None:
+def test_rebuild_mcp_client_reapplies_tenant_launcher(
+    tenant_config_root: Path,
+) -> None:
     with _stub_react_agent_tool_exports():
         from swe.agents.react_agent import SWEAgent
 
@@ -214,7 +224,10 @@ def test_rebuild_mcp_client_reapplies_tenant_launcher(tenant_config_root: Path) 
             },
         )
 
-        with patch("swe.agents.react_agent.StdIOStatefulClient", _FakeStdIOClient):
+        with patch(
+            "swe.agents.react_agent.StdIOStatefulClient",
+            _FakeStdIOClient,
+        ):
             with tenant_context(tenant_id="tenant-a"):
                 rebuilt = SWEAgent._rebuild_mcp_client(original_client)
 

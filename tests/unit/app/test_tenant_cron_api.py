@@ -24,9 +24,9 @@ models_spec = importlib.util.spec_from_file_location(
     "swe.app.crons.models",
     SRC_ROOT / "swe" / "app" / "crons" / "models.py",
 )
+assert models_spec is not None and models_spec.loader is not None
 models_module = importlib.util.module_from_spec(models_spec)
 sys.modules["swe.app.crons.models"] = models_module
-assert models_spec is not None and models_spec.loader is not None
 models_spec.loader.exec_module(models_module)
 
 manager_module = types.ModuleType("swe.app.crons.manager")
@@ -37,9 +37,9 @@ api_spec = importlib.util.spec_from_file_location(
     "swe.app.crons.api",
     SRC_ROOT / "swe" / "app" / "crons" / "api.py",
 )
+assert api_spec is not None and api_spec.loader is not None
 api_module = importlib.util.module_from_spec(api_spec)
 sys.modules["swe.app.crons.api"] = api_module
-assert api_spec is not None and api_spec.loader is not None
 api_spec.loader.exec_module(api_module)
 
 

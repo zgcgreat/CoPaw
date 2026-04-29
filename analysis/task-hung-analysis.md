@@ -27,7 +27,7 @@
 
 ### 1. MCP `call_tool()` — 无超时保护
 
-**文件**: `src/swe/app/mcp/stateful_client.py`  
+**文件**: `src/swe/app/mcp/stateful_client.py`
 **位置**: 第 301 行
 
 ```python
@@ -44,7 +44,7 @@ result = await self.session.call_tool(name, arguments or {})
 
 ### 2. MCP `list_tools()` — 无超时保护
 
-**文件**: `src/swe/app/mcp/stateful_client.py`  
+**文件**: `src/swe/app/mcp/stateful_client.py`
 **位置**: 第 280 行
 
 ```python
@@ -57,7 +57,7 @@ tools_result = await self.session.list_tools()
 
 ### 3. Query Handler — 全局无超时
 
-**文件**: `src/swe/app/runner/runner.py`  
+**文件**: `src/swe/app/runner/runner.py`
 **位置**: 第 477-804 行 (`query_handler`)
 
 ```python
@@ -75,7 +75,7 @@ async def query_handler(self, ...):
 
 ### 4. LLM Provider 调用 — 最坏情况 ~35 分钟
 
-**文件**: `src/swe/providers/retry_chat_model.py`  
+**文件**: `src/swe/providers/retry_chat_model.py`
 **位置**: 第 305 行
 
 ```python
@@ -102,7 +102,7 @@ response = await self._inner(*args, **kwargs)
 
 ### 5. Agent ReAct 循环 — 单轮无时间限制
 
-**文件**: `src/swe/agents/react_agent.py`  
+**文件**: `src/swe/agents/react_agent.py`
 **位置**: `max_iters`（第 169 行）限制迭代次数
 
 **问题**: `max_iters` 限制了迭代次数（默认值），但 **单次迭代没有时间限制**。一次迭代中可能包含：
@@ -116,7 +116,7 @@ response = await self._inner(*args, **kwargs)
 
 ### 6. Cron 任务超时 — 用户无感知
 
-**文件**: `src/swe/app/crons/executor.py`  
+**文件**: `src/swe/app/crons/executor.py`
 **位置**: 第 240-243 行
 
 ```python
@@ -137,7 +137,7 @@ result = await asyncio.wait_for(
 
 ### 7. Channel 消息消费 — 无超时
 
-**文件**: `src/swe/app/channels/manager.py`  
+**文件**: `src/swe/app/channels/manager.py`
 **位置**: 第 396-445 行（消费循环）
 
 **问题**: Channel 消费循环处理单条消息时无超时。如果消息处理涉及 Agent 执行（必然会），整个消费循环都会被阻塞。
@@ -150,7 +150,7 @@ result = await asyncio.wait_for(
 
 ### 8. 任务清理操作 — 无超时
 
-**文件**: `src/swe/app/runner/runner.py`  
+**文件**: `src/swe/app/runner/runner.py`
 **位置**: 第 812-850 行（finally 块）
 
 **问题**: `query_handler` 的 finally 块执行清理（保存会话、落盘等），这些操作本身也没有超时保护。如果清理阶段卡住（如数据库不可达），整个请求将永远无法完成。
@@ -159,7 +159,7 @@ result = await asyncio.wait_for(
 
 ### 9. Agent `interrupt()` — 无超时
 
-**文件**: `src/swe/agents/react_agent.py`  
+**文件**: `src/swe/agents/react_agent.py`
 **位置**: 第 1123-1137 行
 
 **问题**: `interrupt()` 方法等待任务完成，但没有设置 `asyncio.wait_for`。如果 Agent 无法正常停止（如 MCP 工具调用卡住），`interrupt()` 也会卡住。

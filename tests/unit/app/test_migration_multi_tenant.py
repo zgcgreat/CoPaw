@@ -10,7 +10,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 import swe.app.migration as migration_module
 import swe.constant as constant_module
 from swe.agents.skills_manager import ensure_skill_pool_initialized
-from swe.app.migration import ensure_default_agent_exists, ensure_qa_agent_exists
+from swe.app.migration import (
+    ensure_default_agent_exists,
+    ensure_qa_agent_exists,
+)
 from swe.config.config import (
     Config,
     AgentsConfig,

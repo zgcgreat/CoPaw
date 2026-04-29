@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
 # Per-session suggestion storage: session_id -> list of suggestions
@@ -16,6 +18,21 @@ _session_suggestions: Dict[str, List[Dict[str, Any]]] = {}
 _lock = asyncio.Lock()
 _MAX_AGE_SECONDS = 60  # 建议有效期60秒
 _MAX_SUGGESTIONS_PER_SESSION = 10  # 每个session最多存储的建议数
+
+# Q&A 内容存储：chat_id -> {user_message_hash: QAContentEntry}
+_qa_content_store: Dict[str, Dict[str, Any]] = {}
+_QA_MAX_AGE_SECONDS = 120  # Q&A 内容有效期120秒
+
+
+@dataclass
+class QAContentEntry:
+    """Q&A 内容条目."""
+
+    user_message: str  # 提取后的用户问题
+    user_message_hash: str  # 用户问题的 hash
+    assistant_response: str  # 提取后的助手回答
+    ts: float  # 存储时间戳
+    tenant_id: str  # 租户 ID
 
 
 async def store_suggestions(

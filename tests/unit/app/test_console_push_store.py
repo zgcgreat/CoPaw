@@ -19,8 +19,8 @@ store_spec = importlib.util.spec_from_file_location(
     "tenant_test_console_push_store",
     _STORE_FILE,
 )
-console_push_store = importlib.util.module_from_spec(store_spec)
 assert store_spec is not None and store_spec.loader is not None
+console_push_store = importlib.util.module_from_spec(store_spec)
 store_spec.loader.exec_module(console_push_store)
 
 
@@ -118,7 +118,11 @@ class TestTenantPushStoreIsolation:
     @pytest.mark.skip(reason="Requires full app dependencies")
     async def test_clear_tenant_removes_only_that_tenant(self):
         """clear_tenant only removes messages for specified tenant."""
-        from swe.app.console_push_store import append, clear_tenant, _get_tenant_store
+        from swe.app.console_push_store import (
+            append,
+            clear_tenant,
+            _get_tenant_store,
+        )
 
         # Add messages for both tenants
         await append("session-1", "Tenant A msg", tenant_id="tenant-a")
@@ -142,7 +146,11 @@ class TestTenantPushStoreBounded:
     @pytest.mark.skip(reason="Requires full app dependencies")
     async def test_max_messages_per_tenant(self):
         """Max messages limit is enforced per tenant."""
-        from swe.app.console_push_store import append, _get_tenant_store, _MAX_MESSAGES
+        from swe.app.console_push_store import (
+            append,
+            _get_tenant_store,
+            _MAX_MESSAGES,
+        )
 
         # Add many messages to tenant-a
         for i in range(_MAX_MESSAGES + 10):
@@ -154,15 +162,27 @@ class TestTenantPushStoreBounded:
     @pytest.mark.skip(reason="Requires full app dependencies")
     async def test_message_limits_are_per_tenant(self):
         """Each tenant has its own message limit."""
-        from swe.app.console_push_store import append, _get_tenant_store, _MAX_MESSAGES
+        from swe.app.console_push_store import (
+            append,
+            _get_tenant_store,
+            _MAX_MESSAGES,
+        )
 
         # Fill tenant-a to limit
         for i in range(_MAX_MESSAGES + 5):
-            await append(f"session-a-{i}", f"Message A {i}", tenant_id="tenant-a")
+            await append(
+                f"session-a-{i}",
+                f"Message A {i}",
+                tenant_id="tenant-a",
+            )
 
         # Add messages to tenant-b
         for i in range(5):
-            await append(f"session-b-{i}", f"Message B {i}", tenant_id="tenant-b")
+            await append(
+                f"session-b-{i}",
+                f"Message B {i}",
+                tenant_id="tenant-b",
+            )
 
         store_a = _get_tenant_store("tenant-a")
         store_b = _get_tenant_store("tenant-b")

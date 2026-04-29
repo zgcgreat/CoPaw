@@ -102,7 +102,7 @@ def extract_access_token_from_cookie(cookie_header: str) -> str:
         if name == ACCESS_TOKEN_COOKIE_NAME and value:
             return value
     raise ValueError(
-        f"cron auth cookie missing {ACCESS_TOKEN_COOKIE_NAME}"
+        f"cron auth cookie missing {ACCESS_TOKEN_COOKIE_NAME}",
     )
 
 
@@ -111,7 +111,7 @@ def merge_auth_token_into_cookie(
     auth_token: str,
 ) -> str:
     if not cookie_header:
-        return None
+        return f"{ACCESS_TOKEN_COOKIE_NAME}={auth_token}"
 
     merged_parts: list[str] = []
     replaced = False
@@ -217,7 +217,7 @@ def _raise_if_user_info_expired(state: CronAuthState) -> None:
     if not state.user_info:
         return
     expires_at = ensure_utc(state.user_info_expires_at)
-    print("user_info expires_at",expires_at)
+    print("user_info expires_at", expires_at)
     now = utc_now()
     if expires_at is not None and expires_at <= now:
         raise ValueError("cron auth user_info is expired")

@@ -41,7 +41,11 @@ def _resolve_file_path(file_path: str) -> str:
                                  or tenant context is missing.
     """
     base_dir = get_current_tool_base_dir()
-    resolved = resolve_tenant_path(file_path, base_dir=base_dir, allow_nonexistent=True)
+    resolved = resolve_tenant_path(
+        file_path,
+        base_dir=base_dir,
+        allow_nonexistent=True,
+    )
     return str(resolved)
 
 
@@ -121,7 +125,9 @@ async def read_file(  # pylint: disable=too-many-return-statements
         file_path = _resolve_file_path(file_path)
     except TenantPathBoundaryError:
         return ToolResponse(
-            content=[TextBlock(**make_permission_denied_response("Read file"))],
+            content=[
+                TextBlock(**make_permission_denied_response("Read file")),
+            ],
         )
 
     if not os.path.exists(file_path):
@@ -247,7 +253,9 @@ async def write_file(
         file_path = _resolve_file_path(file_path)
     except TenantPathBoundaryError:
         return ToolResponse(
-            content=[TextBlock(**make_permission_denied_response("Write file"))],
+            content=[
+                TextBlock(**make_permission_denied_response("Write file")),
+            ],
         )
 
     encoding = _get_encoding_for_file(file_path)
@@ -307,7 +315,9 @@ async def edit_file(
         resolved_path = _resolve_file_path(file_path)
     except TenantPathBoundaryError:
         return ToolResponse(
-            content=[TextBlock(**make_permission_denied_response("Edit file"))],
+            content=[
+                TextBlock(**make_permission_denied_response("Edit file")),
+            ],
         )
 
     if not os.path.exists(resolved_path):
@@ -403,7 +413,9 @@ async def append_file(
         file_path = _resolve_file_path(file_path)
     except TenantPathBoundaryError:
         return ToolResponse(
-            content=[TextBlock(**make_permission_denied_response("Append file"))],
+            content=[
+                TextBlock(**make_permission_denied_response("Append file")),
+            ],
         )
 
     encoding = _get_encoding_for_file(file_path)

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Style from "./style";
 import { featuredCasesApi } from "@/api/modules/featuredCases";
+import caseIcon from '../../../assets/icons/default_case.svg'
 
 export interface FeaturedCase {
-  id: string;
+  id: number;
   label: string;
   value: string;
   image?: string;
@@ -12,18 +13,17 @@ export interface FeaturedCase {
 export interface FeaturedCasesProps {
   cases?: FeaturedCase[];
   onFillInput?: (text: string) => void;
-  onViewCase?: (caseId: string) => void;
+  onViewCase?: (id: number) => void;
 }
 
-function DocumentIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="7" y="3" width="5" height="18" rx="1" fill="currentColor" />
-      <rect x="14" y="3" width="5" height="18" rx="1" fill="currentColor" />
-      <rect x="7" y="3" width="12" height="1.5" fill="currentColor" />
-    </svg>
-  );
-}
+const DEFAULT_CASES: FeaturedCase[] = [
+  {
+    id: 1,
+    label: "默认案例",
+    value: "default",
+    image: caseIcon,
+  },
+];
 
 function MoreIcon() {
   return (
@@ -68,13 +68,17 @@ export default function FeaturedCases(props: FeaturedCasesProps) {
     const loadCases = async () => {
       try {
         const apiCases = await featuredCasesApi.listCases();
-        const featuredCases: FeaturedCase[] = apiCases.map((c) => ({
-          id: c.id,
-          label: c.label,
-          value: c.value,
-          image: c.image_url,
-        }));
-        setCases(featuredCases);
+        if(apiCases && apiCases.length > 0){
+          const featuredCases: FeaturedCase[] = apiCases.map((c) => ({
+            id: c.id,
+            label: c.label,
+            value: c.value,
+            image: c.image_url,
+          }));
+          setCases(featuredCases);
+        }else{
+          setCases(DEFAULT_CASES);
+        }
       } catch (error) {
         console.error("Failed to load cases:", error);
         // Keep empty array on error
@@ -109,7 +113,7 @@ export default function FeaturedCases(props: FeaturedCasesProps) {
           <div className="featured-cases-header">
             <div className="featured-cases-title">
               <span className="featured-cases-title-icon">
-                <DocumentIcon />
+                <img src={caseIcon} alt="" />
               </span>
               精选案例
             </div>
@@ -133,7 +137,7 @@ export default function FeaturedCases(props: FeaturedCasesProps) {
         <div className="featured-cases-header">
           <div className="featured-cases-title">
             <span className="featured-cases-title-icon">
-              <DocumentIcon />
+              <img src={caseIcon} alt="" />
             </span>
             精选案例
           </div>

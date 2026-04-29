@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for tenant model utility functions."""
 
 import os
@@ -84,9 +85,12 @@ class TestResolveEnvVars:
     def test_complex_url_with_env_vars(self):
         """Test complex URL construction with environment variables."""
         with patch.dict(
-            os.environ, {"API_HOST": "api.example.com", "API_KEY": "abc123"}
+            os.environ,
+            {"API_HOST": "api.example.com", "API_KEY": "abc123"},
         ):
-            result = resolve_env_vars("https://${ENV:API_HOST}/v1?key=${ENV:API_KEY}")
+            result = resolve_env_vars(
+                "https://${ENV:API_HOST}/v1?key=${ENV:API_KEY}",
+            )
             assert result == "https://api.example.com/v1?key=abc123"
 
     def test_consecutive_env_vars(self):

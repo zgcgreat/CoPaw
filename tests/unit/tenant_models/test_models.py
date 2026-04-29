@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Unit tests for tenant model configuration data models."""
 
 import pytest
@@ -150,8 +151,14 @@ class TestTenantModelConfig:
             routing=RoutingConfig(
                 mode="local_first",
                 slots={
-                    "local": ModelSlot(provider_id="ollama-local", model="llama2"),
-                    "cloud": ModelSlot(provider_id="openai-cloud", model="gpt-4"),
+                    "local": ModelSlot(
+                        provider_id="ollama-local",
+                        model="llama2",
+                    ),
+                    "cloud": ModelSlot(
+                        provider_id="openai-cloud",
+                        model="gpt-4",
+                    ),
                 },
             ),
         )
@@ -185,8 +192,14 @@ class TestTenantModelConfig:
             routing=RoutingConfig(
                 mode="local_first",
                 slots={
-                    "local": ModelSlot(provider_id="provider-1", model="gpt-4"),
-                    "cloud": ModelSlot(provider_id="provider-2", model="claude-3-opus"),
+                    "local": ModelSlot(
+                        provider_id="provider-1",
+                        model="gpt-4",
+                    ),
+                    "cloud": ModelSlot(
+                        provider_id="provider-2",
+                        model="claude-3-opus",
+                    ),
                 },
             ),
         )
@@ -220,8 +233,14 @@ class TestTenantModelConfig:
             routing=RoutingConfig(
                 mode="local_first",
                 slots={
-                    "local": ModelSlot(provider_id="provider-1", model="gpt-4"),
-                    "cloud": ModelSlot(provider_id="provider-2", model="claude-3-opus"),
+                    "local": ModelSlot(
+                        provider_id="provider-1",
+                        model="gpt-4",
+                    ),
+                    "cloud": ModelSlot(
+                        provider_id="provider-2",
+                        model="claude-3-opus",
+                    ),
                 },
             ),
         )
@@ -276,7 +295,10 @@ class TestTenantModelConfig:
             routing=RoutingConfig(
                 mode="local_first",
                 slots={
-                    "active": ModelSlot(provider_id="openai-main", model="gpt-4"),
+                    "active": ModelSlot(
+                        provider_id="openai-main",
+                        model="gpt-4",
+                    ),
                 },
             ),
         )
@@ -306,7 +328,7 @@ class TestTenantModelConfig:
                     "models": ["gpt-4"],
                     "enabled": True,
                     "extra": {},
-                }
+                },
             ],
             "routing": {
                 "mode": "local_first",
@@ -314,7 +336,7 @@ class TestTenantModelConfig:
                     "local": {
                         "provider_id": "openai-main",
                         "model": "gpt-4",
-                    }
+                    },
                 },
             },
         }

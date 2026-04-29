@@ -17,11 +17,13 @@ fcntl_stub.LOCK_UN = 8
 sys.modules.setdefault("fcntl", fcntl_stub)
 
 import swe.providers.provider_manager as provider_manager_module
+import swe.tenant_models.manager as tenant_models_manager_module
 from swe.providers.anthropic_provider import AnthropicProvider
 from swe.providers.models import ModelSlotConfig
 from swe.providers.openai_provider import OpenAIProvider
 from swe.providers.provider import ModelInfo
 from swe.providers.provider_manager import ProviderManager
+from swe.tenant_models.manager import TenantModelManager
 
 
 LEGACY_PROVIDER = {
@@ -89,13 +91,85 @@ LEGACY_PROVIDER = {
 def isolated_secret_dir(monkeypatch, tmp_path):
     secret_dir = tmp_path / ".swe.secret"
     monkeypatch.setattr(provider_manager_module, "SECRET_DIR", secret_dir)
-    return secret_dir
+    monkeypatch.setattr(tenant_models_manager_module, "SECRET_DIR", secret_dir)
+    ProviderManager._instances.clear()
+    ProviderManager._instance = None
+    TenantModelManager.invalidate_cache()
+    yield secret_dir
+    ProviderManager._instances.clear()
+    ProviderManager._instance = None
+    TenantModelManager.invalidate_cache()
+
+
+def _openai_provider() -> OpenAIProvider:
+    return OpenAIProvider(
+        id="openai",
+        name="OpenAI",
+        base_url="https://api.openai.com/v1",
+        api_key_prefix="sk-",
+        models=[ModelInfo(id="gpt-5", name="GPT-5")],
+        freeze_url=True,
+    )
+
+
+def _azure_openai_provider() -> OpenAIProvider:
+    return OpenAIProvider(
+        id="azure-openai",
+        name="Azure OpenAI",
+        models=[ModelInfo(id="gpt-5-chat", name="GPT-5 Chat")],
+    )
+
+
+def _dashscope_provider() -> OpenAIProvider:
+    return OpenAIProvider(
+        id="dashscope",
+        name="DashScope",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        api_key_prefix="sk",
+        models=[ModelInfo(id="qwen3-max", name="Qwen3 Max")],
+        freeze_url=True,
+    )
+
+
+def _ollama_provider() -> OpenAIProvider:
+    return OpenAIProvider(
+        id="ollama",
+        name="Ollama",
+        base_url="http://localhost:11434",
+        models=[ModelInfo(id="llama3", name="Llama 3")],
+        require_api_key=False,
+    )
+
+
+def _minimax_provider() -> AnthropicProvider:
+    return AnthropicProvider(
+        id="minimax",
+        name="MiniMax (International)",
+        base_url="https://api.minimax.io/anthropic",
+        models=[ModelInfo(id="MiniMax-M2.5", name="MiniMax M2.5")],
+        chat_model="AnthropicChatModel",
+        freeze_url=True,
+    )
+
+
+def _seed_builtins(manager: ProviderManager, *providers) -> None:
+    for provider in providers:
+        manager.overwrite_provider_payload(provider.model_dump())
+
+
+def _patch_builtins(monkeypatch, *providers) -> None:
+    def _init_builtins(self):
+        for provider in providers:
+            self._add_builtin(provider.model_copy(deep=True))
+
+    monkeypatch.setattr(ProviderManager, "_init_builtins", _init_builtins)
 
 
 async def test_add_custom_provider_and_reload_from_storage(
     isolated_secret_dir,
 ) -> None:
     manager = ProviderManager()
+    _seed_builtins(manager, _openai_provider())
     custom = OpenAIProvider(
         id="custom-openai",
         name="Custom OpenAI",
@@ -138,6 +212,7 @@ async def test_activate_provider_persists_active_model(
     monkeypatch,
 ) -> None:
     manager = ProviderManager()
+    _seed_builtins(manager, _openai_provider())
 
     class FakeCompletions:
         async def create(self, **kwargs):
@@ -204,7 +279,16 @@ def test_load_provider_invalid_json_returns_none(isolated_secret_dir) -> None:
 
 def test_migrate_legacy_file_and_persist_active_model(
     isolated_secret_dir,
+    monkeypatch,
 ) -> None:
+    _patch_builtins(
+        monkeypatch,
+        _dashscope_provider(),
+        _openai_provider(),
+        _azure_openai_provider(),
+        AnthropicProvider(id="anthropic", name="Anthropic"),
+        _ollama_provider(),
+    )
     isolated_secret_dir.mkdir(parents=True, exist_ok=True)
     legacy_file = isolated_secret_dir / "providers.json"
     legacy_file.write_text(
@@ -247,6 +331,7 @@ async def test_add_custom_provider_conflict_resolution_loops_until_unique(
     isolated_secret_dir,
 ) -> None:
     manager = ProviderManager()
+    _seed_builtins(manager, _openai_provider())
     conflict = OpenAIProvider(
         id="openai",
         name="Conflict OpenAI",
@@ -269,6 +354,7 @@ def test_update_provider_for_builtin_persists_to_builtin_path(
     isolated_secret_dir,
 ) -> None:
     manager = ProviderManager()
+    _seed_builtins(manager, _openai_provider(), _azure_openai_provider())
 
     ok = manager.update_provider(
         "openai",
@@ -323,6 +409,7 @@ async def test_activate_provider_invalid_model_raises(
     isolated_secret_dir,
 ) -> None:
     manager = ProviderManager()
+    _seed_builtins(manager, _openai_provider())
 
     with pytest.raises(ValueError, match="Model 'not-exists' not found"):
         await manager.activate_model("openai", "not-exists")
@@ -388,7 +475,9 @@ def test_provider_from_data_fallback_to_openai(isolated_secret_dir) -> None:
 
 def test_init_from_storage_migrates_with_different_provider(
     isolated_secret_dir,
+    monkeypatch,
 ) -> None:
+    _patch_builtins(monkeypatch, _minimax_provider(), _ollama_provider())
     builtin_path = isolated_secret_dir / "default" / "providers" / "builtin"
     builtin_path.mkdir(parents=True, exist_ok=True)
 
@@ -522,6 +611,8 @@ class TestProviderManagerTenantIsolation:
         """Different tenants have isolated storage directories."""
         manager_a = ProviderManager.get_instance("tenant-a")
         manager_b = ProviderManager.get_instance("tenant-b")
+        _seed_builtins(manager_a, _openai_provider())
+        _seed_builtins(manager_b, _openai_provider())
 
         # Update provider for tenant-a
         manager_a.update_provider("openai", {"api_key": "sk-tenant-a"})

@@ -48,6 +48,7 @@ import { IconButton } from "@agentscope-ai/design";
 // import ChatActionGroup from "./components/ChatActionGroup";
 import ChatHeaderTitle from "./components/ChatHeaderTitle";
 import ChatSessionInitializer from "./components/ChatSessionInitializer";
+import ConversationQuickNav from "@/components/ConversationQuickNav";
 // ==================== 首页改版 (Kun He) ====================
 import WelcomeCenterLayout from "@/components/agentscope-chat/WelcomeCenterLayout";
 import ChatSidebar from "./components/ChatSidebar";
@@ -578,10 +579,17 @@ export default function ChatPage() {
       }
     };
 
+    // 监听定时任务创建成功事件
+    const handleTaskCreated = () => {
+      void refreshJobs();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityRefresh);
+    document.addEventListener("taskCreated", handleTaskCreated);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+      document.removeEventListener("taskCreated", handleTaskCreated);
     };
   }, [refreshJobs]);
 
@@ -1252,6 +1260,7 @@ export default function ChatPage() {
           >
             <AgentScopeRuntimeWebUILayout ref={chatRef} key={refreshKey} />
             <DragUploadOverlay visible={isDragging} onClose={handleDragOverlayClose} />
+            <ConversationQuickNav />
           </div>
 
         <Modal

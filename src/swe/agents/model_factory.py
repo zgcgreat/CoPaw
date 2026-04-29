@@ -9,7 +9,6 @@ Example:
     >>> model, formatter = create_model_and_formatter()
 """
 
-
 import base64
 import logging
 import os
@@ -34,6 +33,10 @@ except ImportError:  # pragma: no cover - compatibility fallback
     GeminiChatModel = None
 
 from .utils.tool_message_utils import _sanitize_tool_messages
+from ..constant import (
+    DEFAULT_LLM_CHAT_MAX_CONCURRENT,
+    DEFAULT_LLM_CRON_MAX_CONCURRENT,
+)
 from ..providers import ProviderManager
 from ..providers.retry_chat_model import (
     RetryChatModel,
@@ -230,9 +233,11 @@ def _format_anthropic_output_items(output: list) -> list:
     """Format a list of tool_result output blocks for Anthropic API,
     converting image and video blocks as needed."""
     return [
-        _format_anthropic_media_block(item)
-        if item.get("type") in ("image", "video")
-        else item
+        (
+            _format_anthropic_media_block(item)
+            if item.get("type") in ("image", "video")
+            else item
+        )
         for item in output
     ]
 
@@ -689,14 +694,17 @@ def _strip_top_level_message_name(
     return messages
 
 
-def _get_agent_id(agent_id: Optional[str]) -> Optional[str]:
+def _get_agent_id(
+    agent_id: Optional[str],
+    tenant_id: Optional[str] = None,
+) -> Optional[str]:
     """Resolve agent_id from parameter or context."""
     if agent_id is not None:
         return agent_id
     try:
         from ..app.agent_context import get_current_agent_id
 
-        return get_current_agent_id()
+        return get_current_agent_id(tenant_id)
     except Exception:
         return None
 
@@ -732,6 +740,7 @@ def _get_model_slot(
 
 def _get_retry_config(
     agent_id: Optional[str],
+    tenant_id: Optional[str] = None,
 ) -> Optional[RetryConfig]:
     """Load retry config for agent if available."""
     if not agent_id:
@@ -739,7 +748,10 @@ def _get_retry_config(
     try:
         from ..config.config import load_agent_config
 
-        agent_config = load_agent_config(agent_id)
+        if tenant_id:
+            agent_config = load_agent_config(agent_id, tenant_id=tenant_id)
+        else:
+            agent_config = load_agent_config(agent_id)
         return RetryConfig(
             enabled=agent_config.running.llm_retry_enabled,
             max_retries=agent_config.running.llm_max_retries,
@@ -750,8 +762,59 @@ def _get_retry_config(
         return None
 
 
+def _optional_int_config_value(
+    obj: Any,
+    name: str,
+    default: int | None = None,
+) -> int | None:
+    value = getattr(obj, name, None)
+    if isinstance(value, bool):
+        return default
+    if value is None:
+        return default
+    return value if isinstance(value, int) else default
+
+
+def _optional_float_config_value(obj: Any, name: str) -> float | None:
+    value = getattr(obj, name, None)
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _build_rate_limit_config(running: Any) -> RateLimitConfig:
+    return RateLimitConfig(
+        max_concurrent=running.llm_max_concurrent,
+        chat_max_concurrent=_optional_int_config_value(
+            running,
+            "llm_chat_max_concurrent",
+            DEFAULT_LLM_CHAT_MAX_CONCURRENT,
+        ),
+        cron_max_concurrent=_optional_int_config_value(
+            running,
+            "llm_cron_max_concurrent",
+            DEFAULT_LLM_CRON_MAX_CONCURRENT,
+        ),
+        max_qpm=running.llm_max_qpm,
+        pause_seconds=running.llm_rate_limit_pause,
+        jitter_range=running.llm_rate_limit_jitter,
+        acquire_timeout=running.llm_acquire_timeout,
+        chat_acquire_timeout=_optional_float_config_value(
+            running,
+            "llm_chat_acquire_timeout",
+        ),
+        cron_acquire_timeout=_optional_float_config_value(
+            running,
+            "llm_cron_acquire_timeout",
+        ),
+    )
+
+
 def _get_rate_limit_config(
     agent_id: Optional[str],
+    tenant_id: Optional[str] = None,
 ) -> Optional[RateLimitConfig]:
     """Load rate limit config for agent if available."""
     if not agent_id:
@@ -759,16 +822,40 @@ def _get_rate_limit_config(
     try:
         from ..config.config import load_agent_config
 
-        agent_config = load_agent_config(agent_id)
-        return RateLimitConfig(
-            max_concurrent=agent_config.running.llm_max_concurrent,
-            max_qpm=agent_config.running.llm_max_qpm,
-            pause_seconds=agent_config.running.llm_rate_limit_pause,
-            jitter_range=agent_config.running.llm_rate_limit_jitter,
-            acquire_timeout=agent_config.running.llm_acquire_timeout,
-        )
+        if tenant_id:
+            agent_config = load_agent_config(agent_id, tenant_id=tenant_id)
+        else:
+            agent_config = load_agent_config(agent_id)
+        return _build_rate_limit_config(agent_config.running)
     except Exception:
         return None
+
+
+def _get_model_runtime_configs(
+    agent_id: Optional[str],
+    tenant_id: Optional[str] = None,
+) -> tuple[Optional[RetryConfig], Optional[RateLimitConfig]]:
+    """Load retry and rate-limit config with one tenant-local config read."""
+    if not agent_id:
+        return None, None
+    try:
+        from ..config.config import load_agent_config
+
+        if tenant_id:
+            agent_config = load_agent_config(agent_id, tenant_id=tenant_id)
+        else:
+            agent_config = load_agent_config(agent_id)
+        return (
+            RetryConfig(
+                enabled=agent_config.running.llm_retry_enabled,
+                max_retries=agent_config.running.llm_max_retries,
+                backoff_base=agent_config.running.llm_backoff_base,
+                backoff_cap=agent_config.running.llm_backoff_cap,
+            ),
+            _build_rate_limit_config(agent_config.running),
+        )
+    except Exception:
+        return None, None
 
 
 def _wrap_model_with_tracing(
@@ -812,23 +899,17 @@ def create_model_and_formatter(
     Example:
         >>> model, formatter = create_model_and_formatter()
     """
-    # Resolve agent_id and tenant_id
-    resolved_agent_id = _get_agent_id(agent_id)
+    # Resolve tenant and tenant-local agent identity.
     tenant_id = _get_tenant_id()
+    resolved_agent_id = _get_agent_id(agent_id, tenant_id)
 
     # Try to get model from tenant-aware ProviderManager
     # This is the primary and only supported path for active model resolution
     model_slot = None
-    retry_config = None
-    rate_limit_config = None
-
-    # Get tenant_id for tenant-aware ProviderManager
-    try:
-        from swe.config.context import get_current_effective_tenant_id
-
-        tenant_id = get_current_effective_tenant_id()
-    except Exception:
-        tenant_id = None
+    retry_config, rate_limit_config = _get_model_runtime_configs(
+        resolved_agent_id,
+        tenant_id,
+    )
 
     # Ensure tenant provider storage exists before accessing ProviderManager
     ProviderManager.ensure_tenant_provider_storage(tenant_id)
@@ -859,12 +940,12 @@ def create_model_and_formatter(
     wrapped_model = _wrap_model_with_tracing(provider_id, model)
 
     # Wrap with retry logic for transient LLM API errors
-    retry_config = _get_retry_config(resolved_agent_id)
-    rate_limit_config = _get_rate_limit_config(resolved_agent_id)
     wrapped_model = RetryChatModel(
         wrapped_model,
         retry_config=retry_config,
         rate_limit_config=rate_limit_config,
+        tenant_id=tenant_id,
+        agent_id=resolved_agent_id,
     )
 
     return wrapped_model, formatter

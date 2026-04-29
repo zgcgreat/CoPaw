@@ -1,5 +1,5 @@
 /**
- * Featured Cases API types (simplified - merged tables)
+ * Featured Cases API types (simplified - no case_id)
  */
 
 export interface CaseStep {
@@ -15,9 +15,8 @@ export interface CaseDetail {
 
 export interface FeaturedCase {
   id: number;
-  source_id: string; // From X-Source-Id header
+  source_id: string;
   bbk_id?: string | null;
-  case_id: string;
   label: string;
   value: string;
   image_url?: string;
@@ -31,16 +30,13 @@ export interface FeaturedCase {
 }
 
 export interface FeaturedCaseCreate {
-  // source_id NOT included - comes from X-Source-Id header
   bbk_id?: string | null;
-  case_id: string;
   label: string;
   value: string;
   image_url?: string;
   iframe_url?: string;
   iframe_title?: string;
   steps?: CaseStep[];
-  sort_order?: number;
 }
 
 export interface FeaturedCaseUpdate {
@@ -62,7 +58,7 @@ export interface FeaturedCaseListResponse {
 
 // Display format (from /featured-cases endpoint)
 export interface FeaturedCaseDisplay {
-  id: string;
+  id: number;
   label: string;
   value: string;
   image_url?: string;

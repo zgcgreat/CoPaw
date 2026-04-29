@@ -224,7 +224,8 @@ class TestProviderAPISetActiveModel:
             assert response.status_code == 200
             # Should call activate_model (normalized to global scope)
             mock_manager.activate_model.assert_called_once_with(
-                "openai", "gpt-4"
+                "openai",
+                "gpt-4",
             )
 
     def test_set_active_model_invalid_scope_rejected(self, client):

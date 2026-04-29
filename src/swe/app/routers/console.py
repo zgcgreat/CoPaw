@@ -8,9 +8,10 @@ import re
 import asyncio
 import uuid
 from pathlib import Path
-from typing import AsyncGenerator, Union, List, Any
+from typing import AsyncGenerator, Union, List, Any, Optional, Dict
 
-from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, Body
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from agentscope_runtime.engine.schemas.agent_schemas import (
@@ -328,3 +329,60 @@ async def get_suggestions(
     tenant_id = getattr(request.state, "tenant_id", None)
     suggestions = await take_suggestions(session_id, tenant_id=tenant_id)
     return {"suggestions": suggestions}
+
+
+class QAContentRequest(BaseModel):
+    """Q&A 内容请求模型."""
+
+    chat_id: str = Field(..., description="Chat id (backend chat.id)")
+    user_message: str = Field(..., description="User message text")
+
+
+class QAContentResponse(BaseModel):
+    """Q&A 内容响应模型."""
+
+    success: bool = Field(..., description="Whether Q&A content was found")
+    qa_content: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Extracted Q&A content (user_message, assistant_response)",
+    )
+
+
+@router.post("/suggestions/qa-content", response_model=QAContentResponse)
+async def get_suggestions_qa_content(
+    request: Request,
+    body: QAContentRequest,
+):
+    """根据用户问题获取后端提取的 Q&A 内容.
+
+    前端在响应完成后调用此接口，获取后端提取的 Q&A 关键内容，
+    用于调用外部 suggestions API。
+
+    Args:
+        chat_id: 后端 chat.id（UUID）
+        user_message: 用户问题文本（用于匹配）
+
+    Returns:
+        success: 是否找到 Q&A 内容
+        qa_content: 提取后的用户问题和助手回答（总长度不超过配置上限）
+    """
+    from ..suggestions import get_qa_content
+
+    tenant_id = getattr(request.state, "tenant_id", None)
+
+    entry = await get_qa_content(
+        chat_id=body.chat_id,
+        user_message=body.user_message,
+        tenant_id=tenant_id,
+    )
+
+    if entry is None:
+        return QAContentResponse(
+            success=False,
+            qa_content=None,
+        )
+
+    return QAContentResponse(
+        success=True,
+        qa_content=entry,
+    )

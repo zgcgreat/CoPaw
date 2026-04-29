@@ -38,7 +38,7 @@ dependencies = [
     # Redis for cron coordination (multi-instance support)
     "redis>=5.0.0",
     # Elasticsearch for model output storage (7.x client for ES 6.x server compat)
-    "elasticsearch[async]==7.17.9",
+    # "elasticsearch[async]==7.17.9",
 ]
 
 [tool.setuptools.dynamic]

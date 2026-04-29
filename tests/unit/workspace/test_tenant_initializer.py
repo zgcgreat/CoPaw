@@ -148,10 +148,9 @@ class TestEnsureSeededBootstrap:
         )
         assert config_data["security"]["tool_guard"]["enabled"] is False
         assert config_data["agents"]["language"] == "en"
-        assert (
-            config_data["agents"]["profiles"]["default"]["workspace_dir"]
-            == str(workspace_dir)
-        )
+        assert config_data["agents"]["profiles"]["default"][
+            "workspace_dir"
+        ] == str(workspace_dir)
 
         agent_data = json.loads(
             (workspace_dir / "agent.json").read_text(encoding="utf-8"),
@@ -187,7 +186,10 @@ class TestEnsureSeededBootstrap:
         assert chats_data == {"version": 1, "chats": []}
         assert token_usage_data == {}
 
-    def test_ensure_seeded_bootstrap_seeds_skills_without_qa_agent(self, tmp_path):
+    def test_ensure_seeded_bootstrap_seeds_skills_without_qa_agent(
+        self,
+        tmp_path,
+    ):
         """Runtime bootstrap seeds skills but does not create QA agent."""
         from swe.agents.skills_manager import (
             get_skill_pool_dir,
@@ -247,7 +249,9 @@ class TestEnsureSeededBootstrap:
         assert "ws-skill" in result["workspace_seed"]["skills"]
 
         # Verify QA agent was NOT created (runtime bootstrap boundary)
-        assert not (new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID).exists()
+        assert not (
+            new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID
+        ).exists()
 
     def test_has_seeded_bootstrap_does_not_require_bootstrap_md(
         self,
@@ -290,7 +294,10 @@ class TestEnsureSeededBootstrap:
             "PROFILE.md",
             "SOUL.md",
         ):
-            (default_workspace / filename).write_text("# template\n", encoding="utf-8")
+            (default_workspace / filename).write_text(
+                "# template\n",
+                encoding="utf-8",
+            )
 
         initializer = TenantInitializer(tmp_path, "tenant-bootstrap")
         initializer.ensure_seeded_bootstrap()
@@ -373,4 +380,6 @@ class TestTenantPoolIntegration:
         workspace = pool.get_or_create("tenant-runtime")
 
         assert workspace is not None
-        assert (tmp_path / "tenant-runtime" / "workspaces" / "default").is_dir()
+        assert (
+            tmp_path / "tenant-runtime" / "workspaces" / "default"
+        ).is_dir()

@@ -191,7 +191,9 @@ class TestSkillPoolSeeding:
         )
 
         # Create manifest to indicate "complete" pool state
-        manifest_path = get_pool_skill_manifest_path(working_dir=new_init.tenant_dir)
+        manifest_path = get_pool_skill_manifest_path(
+            working_dir=new_init.tenant_dir,
+        )
         _write_json_atomic(
             manifest_path,
             {"skills": {"existing-skill": {"name": "existing-skill"}}},
@@ -314,7 +316,10 @@ class TestSkillPoolSeeding:
         manifest_data = json.loads(target_manifest.read_text(encoding="utf-8"))
         skill_entry = manifest_data.get("skills", {}).get("config-skill", {})
 
-        assert skill_entry.get("config") == {"api_key": "secret123", "timeout": 30}
+        assert skill_entry.get("config") == {
+            "api_key": "secret123",
+            "timeout": 30,
+        }
 
 
 class TestDefaultWorkspaceSkillSeeding:
@@ -609,7 +614,9 @@ class TestFullInitialization:
         assert result["pool_seed"]["seeded"] is True
 
         # QA agent should NOT be created in runtime bootstrap
-        assert not (new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID).exists()
+        assert not (
+            new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID
+        ).exists()
 
     def test_full_initialization_creates_qa_agent(self, tmp_path):
         """Full initialization (CLI) DOES create QA agent."""
@@ -638,4 +645,6 @@ class TestFullInitialization:
 
         # QA agent SHOULD be created in full initialization
         assert result["qa_agent"] is True
-        assert (new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID).exists()
+        assert (
+            new_init.tenant_dir / "workspaces" / BUILTIN_QA_AGENT_ID
+        ).exists()

@@ -8,6 +8,7 @@ import os
 from agentscope.message import TextBlock
 from agentscope.tool import ToolResponse
 
+from ...app.agent_context import get_current_agent_id
 from ...config.context import get_current_user_id, get_current_workspace_dir
 
 
@@ -77,6 +78,8 @@ async def copy_file_to_static(file_path: str) -> ToolResponse:
 
     # Get working directory and create static folder if needed
     working_dir = get_current_workspace_dir()
+    if working_dir is None:
+        return _tool_error("workspace directory is not configured")
     static_dir = working_dir / "static"
 
     try:
@@ -106,8 +109,9 @@ async def copy_file_to_static(file_path: str) -> ToolResponse:
     # Get user_id for response
     user_id = get_current_user_id() or "default"
     file_name = os.path.basename(dest_path)
-    access = os.getenv("FILE_URL", "localhost")
-    url = access + "/static/" + user_id + "/" + file_name
+    agent_id = get_current_agent_id()
+    access = os.getenv("FILE_URL", "http://localhost:8088")
+    url = access + "/static/" + user_id + "/" + agent_id + "/" + file_name
 
     return _tool_ok(
         f"![{file_name}]({url})",
