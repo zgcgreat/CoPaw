@@ -1,4 +1,5 @@
 import { request } from "../request";
+import { buildAuthHeaders } from "../authHeaders";
 
 export interface MarketSkill {
   item_id: string;
@@ -52,14 +53,15 @@ export interface DistributeResponse {
   item_id: string;
 }
 
-function getHeaders(extra?: Record<string, string>): RequestInit {
-  const headers: Record<string, string> = extra || {};
-  return { headers: new Headers(headers) };
+function mergeHeaders(extra?: Record<string, string>): RequestInit {
+  const base = buildAuthHeaders();
+  const merged: Record<string, string> = { ...base, ...(extra || {}) };
+  return { headers: new Headers(merged) };
 }
 
 export const marketApi = {
   listCategories: async (sourceId: string): Promise<Category[]> => {
-    const opts = getHeaders({ "X-Source-Id": sourceId });
+    const opts = mergeHeaders({ "X-Source-Id": sourceId });
     return request<Category[]>("/api/marketplace/categories", opts);
   },
 
@@ -76,7 +78,7 @@ export const marketApi = {
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
-    const opts = getHeaders({
+    const opts = mergeHeaders({
       "X-Source-Id": sourceId,
       "X-Bbk-Id": bbkId,
     });
@@ -88,7 +90,7 @@ export const marketApi = {
     itemId: string,
     bbkId: string
   ): Promise<MarketSkillDetail | null> => {
-    const opts = getHeaders({
+    const opts = mergeHeaders({
       "X-Source-Id": sourceId,
       "X-Bbk-Id": bbkId,
     });

@@ -1,4 +1,5 @@
 import { request } from "../request";
+import { buildAuthHeaders } from "../authHeaders";
 
 export interface MySkill {
   skill_name: string;
@@ -11,9 +12,10 @@ export interface MySkill {
   has_update: boolean;
 }
 
-function getHeaders(extra?: Record<string, string>): RequestInit {
-  const headers: Record<string, string> = extra || {};
-  return { headers: new Headers(headers) };
+function mergeHeaders(extra?: Record<string, string>): RequestInit {
+  const base = buildAuthHeaders();
+  const merged: Record<string, string> = { ...base, ...(extra || {}) };
+  return { headers: new Headers(merged) };
 }
 
 export const mySkillsApi = {
@@ -21,7 +23,7 @@ export const mySkillsApi = {
     sourceId: string,
     userId: string
   ): Promise<MySkill[]> => {
-    const opts = getHeaders({
+    const opts = mergeHeaders({
       "X-Source-Id": sourceId,
       "X-User-Id": userId,
     });
@@ -33,7 +35,7 @@ export const mySkillsApi = {
     sourceId: string,
     userId: string
   ): Promise<MySkill[]> => {
-    const opts = getHeaders({
+    const opts = mergeHeaders({
       "X-Source-Id": sourceId,
       "X-User-Id": userId,
     });
