@@ -43,9 +43,6 @@ export default defineConfig(({ mode }) => {
       },
       // ==================== 代理配置结束 ====================
     },
-    optimizeDeps: {
-      include: ["diff"],
-    },
     // build: {
     //   // Output to CoPaw's console directory,
     //   // so we don't need to copy files manually after build.
