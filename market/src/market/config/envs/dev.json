@@ -1,0 +1,12 @@
+{
+  "MARKET_LOG_LEVEL": "debug",
+  "MARKET_OPENAPI_DOCS": "true",
+  "MARKET_CORS_ORIGINS": "*",
+  "MARKET_DB_HOST": "",
+  "MARKET_DB_PORT": "3306",
+  "MARKET_DB_USER": "root",
+  "MARKET_DB_ACCESS": "",
+  "MARKET_DB_NAME": "market_dev",
+  "MARKET_DB_MIN_CONN": "1",
+  "MARKET_DB_MAX_CONN": "5"
+}

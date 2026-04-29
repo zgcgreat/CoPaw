@@ -1,0 +1,13 @@
+{
+  "MARKET_DB_HOST": "",
+  "MARKET_DB_PORT": "3306",
+  "MARKET_DB_USER": "root",
+  "MARKET_DB_ACCESS": "",
+  "MARKET_DB_NAME": "market",
+  "MARKET_LOG_LEVEL": "info",
+  "MARKET_ENV": "prd",
+  "MARKET_OPENAPI_DOCS": "false",
+  "MARKET_CORS_ORIGINS": "",
+  "MARKET_PORT": "8090",
+  "MARKET_HOST": "127.0.0.1"
+}

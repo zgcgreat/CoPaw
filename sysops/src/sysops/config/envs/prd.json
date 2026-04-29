@@ -1,0 +1,14 @@
+{
+  "SYSOPS_LOG_LEVEL": "info",
+  "SYSOPS_OPENAPI_DOCS": "false",
+  "SYSOPS_CORS_ORIGINS": "",
+  "SYSOPS_DB_HOST": "",
+  "SYSOPS_DB_PORT": "3306",
+  "SYSOPS_DB_USER": "root",
+  "SYSOPS_DB_ACCESS": "",
+  "SYSOPS_DB_NAME": "sysops",
+  "SYSOPS_DB_MIN_CONN": "2",
+  "SYSOPS_DB_MAX_CONN": "10",
+  "SYSOPS_MONITOR_INTERVAL": "30",
+  "SYSOPS_ALERT_ENABLED": "true"
+}
