@@ -2223,7 +2223,9 @@ class CronManager:  # pylint: disable=too-many-public-methods
                         "job_id=%s",
                         job.id,
                     )
-                await self._record_task_execution_success(job)
+                await asyncio.shield(
+                    self._record_task_execution_success(job),
+                )
                 logger.info(
                     "cron _execute_once: job_id=%s status=success",
                     job.id,
