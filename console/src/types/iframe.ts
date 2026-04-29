@@ -126,6 +126,8 @@ export interface IframeContext {
   initialized: boolean;
   /** 用户 ID（来自 sapId） */
   userId: string | null;
+  /** 用户名称（从后端接口查询） */
+  userName: string | null;
   /** Claw 名称 */
   clawName: string | null;
   /** 空间标识 */

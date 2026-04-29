@@ -11,6 +11,10 @@ import {
   isUserInitialized,
   setUserInitialized,
 } from "../api/modules/customerInfo";
+import {
+  fetchUserInfo,
+  extractUserInfo,
+} from "../api/modules/userInfo";
 import { getTargetCookie } from "./cookie-utils";
 import { authApi } from "../api/modules/auth";
 import { buildAuthHeaders } from "../api/authHeaders";
@@ -141,10 +145,10 @@ function initializeUserIfNeeded(
  * 处理 USER_DATA 消息
  * 父窗口发送的用户数据消息处理逻辑
  */
-async function handleUserDataMessage(
+function handleUserDataMessage(
   message: IframeUserDataMessage,
   origin: string,
-): Promise<void> {
+): void {
   const store = useIframeStore.getState();
   const authHeaders = buildIframeAuthHeaders(message);
 
@@ -210,8 +214,7 @@ function handleMessage(event: MessageEvent): void {
 
   switch (message.type) {
     case "USER_DATA":
-      // handleUserDataMessage 是 async 函数，这里用 void 处理
-      void handleUserDataMessage(message, event.origin);
+      handleUserDataMessage(message, event.origin);
       break;
     case "HEARTBEAT":
       handleHeartbeatMessage(message.timestamp);
@@ -448,4 +451,43 @@ export function isIframeInitialized(): boolean {
  */
 export function getAllowedOrigins(): string[] {
   return [...ALLOWED_ORIGINS];
+}
+
+/**
+ * 查询并设置用户名称和 bbk
+ * 在获取 userId 和 token 后调用，将 userName 和 bbk 存入 store
+ *
+ * @returns 是否成功获取用户信息
+ */
+export async function fetchAndSetUserName(): Promise<boolean> {
+  const store = useIframeStore.getState();
+  const userId = store.userId;
+
+  if (!userId) {
+    return false;
+  }
+
+  try {
+    const userInfoData = await fetchUserInfo(userId);
+    const { userName, bbk } = extractUserInfo(userInfoData);
+
+    // 更新 store，只更新有值的字段
+    // 如果 store 中已存在 bbk，则不覆盖
+    const updates: { userName?: string; bbk?: string } = {};
+    if (userName) {
+      updates.userName = userName;
+    }
+    if (bbk && !store.bbk) {
+      updates.bbk = bbk;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      store.setContext(updates);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("[IframeMessage] fetchAndSetUserName error:", error);
+    return false;
+  }
 }

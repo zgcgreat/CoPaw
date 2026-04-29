@@ -10,6 +10,7 @@
  *
  * 存储字段：
  * - userId: 用户 ID（来自父窗口的 sapId 参数）
+ * - userName: 用户名称（从后端接口查询）
  * - clawName: Claw 名称
  * - space: 空间标识
  * - source: 来源标识
@@ -71,6 +72,7 @@ interface IframeStore extends IframeContext {
 const initialState: IframeContext = {
   initialized: false,
   userId: null,
+  userName: null,
   clawName: null,
   space: null,
   source: null,
@@ -119,6 +121,7 @@ export const useIframeStore = create<IframeStore>()(
       name: "swe-iframe-context",
       partialize: (state) => ({
         userId: state.userId,
+        userName: state.userName,
         clawName: state.clawName,
         space: state.space,
         source: state.source,
