@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,23 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         logger.info("Database connection disabled (no host configured)")
     fastapi_app.state.db = db
+
+    marketplace_root = Path(
+        os.environ.get(
+            "MARKET_MARKETPLACE_ROOT",
+            str(Path.home() / ".swe.marketplace"),
+        ),
+    )
+    swe_root = Path(
+        os.environ.get("MARKET_SWE_ROOT", str(Path.home() / ".swe")),
+    )
+    from ..marketplace.service import MarketplaceService
+
+    fastapi_app.state.marketplace = MarketplaceService(
+        db=db,
+        marketplace_root=marketplace_root,
+        swe_root=swe_root,
+    )
 
     yield
 
