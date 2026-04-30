@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SysOps 常量与环境变量加载工具."""
+"""Monitor 常量与环境变量加载工具."""
 import os
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 _ENV_VAR_OVERRIDES: ContextVar[dict[str, str]] = ContextVar(
-    "sysops_env_var_overrides",
+    "monitor_env_var_overrides",
     default=None,  # type: ignore[arg-type]
 )
 
@@ -102,7 +102,7 @@ class EnvVarLoader:
 # ============================================================
 
 WORKING_DIR = (
-    Path(EnvVarLoader.get_str("SYSOPS_WORKING_DIR", "~/.sysops"))
+    Path(EnvVarLoader.get_str("MONITOR_WORKING_DIR", "~/.monitor"))
     .expanduser()
     .resolve()
 )
@@ -110,7 +110,7 @@ WORKING_DIR = (
 SECRET_DIR = (
     Path(
         EnvVarLoader.get_str(
-            "SYSOPS_SECRET_DIR",
+            "MONITOR_SECRET_DIR",
             f"{WORKING_DIR}.secret",
         ),
     )
@@ -118,49 +118,49 @@ SECRET_DIR = (
     .resolve()
 )
 
-CONFIG_FILE = EnvVarLoader.get_str("SYSOPS_CONFIG_FILE", "config.json")
+CONFIG_FILE = EnvVarLoader.get_str("MONITOR_CONFIG_FILE", "config.json")
 
-LOG_LEVEL_ENV = "SYSOPS_LOG_LEVEL"
+LOG_LEVEL_ENV = "MONITOR_LOG_LEVEL"
 
 # ============================================================
 # 应用配置
 # ============================================================
 
-ENV_NAME = EnvVarLoader.get_str("SYSOPS_ENV", "prd")
+ENV_NAME = EnvVarLoader.get_str("MONITOR_ENV", "prd")
 
-DOCS_ENABLED = EnvVarLoader.get_bool("SYSOPS_OPENAPI_DOCS", False)
+DOCS_ENABLED = EnvVarLoader.get_bool("MONITOR_OPENAPI_DOCS", False)
 
-CORS_ORIGINS = EnvVarLoader.get_str("SYSOPS_CORS_ORIGINS", "").strip()
+CORS_ORIGINS = EnvVarLoader.get_str("MONITOR_CORS_ORIGINS", "").strip()
 
-DEFAULT_PORT = EnvVarLoader.get_int("SYSOPS_PORT", 9090, min_value=1)
-DEFAULT_HOST = EnvVarLoader.get_str("SYSOPS_HOST", "127.0.0.1")
+DEFAULT_PORT = EnvVarLoader.get_int("MONITOR_PORT", 9090, min_value=1)
+DEFAULT_HOST = EnvVarLoader.get_str("MONITOR_HOST", "127.0.0.1")
 
 # ============================================================
 # 数据库配置
 # ============================================================
 
-DB_HOST = EnvVarLoader.get_str("SYSOPS_DB_HOST", "")
-DB_PORT = EnvVarLoader.get_int("SYSOPS_DB_PORT", 3306, min_value=1)
-DB_USER = EnvVarLoader.get_str("SYSOPS_DB_USER", "root")
-DB_ACCESS = EnvVarLoader.get_str("SYSOPS_DB_ACCESS", "")
-DB_NAME = EnvVarLoader.get_str("SYSOPS_DB_NAME", "sysops")
-DB_MIN_CONN = EnvVarLoader.get_int("SYSOPS_DB_MIN_CONN", 2, min_value=1)
-DB_MAX_CONN = EnvVarLoader.get_int("SYSOPS_DB_MAX_CONN", 10, min_value=1)
+DB_HOST = EnvVarLoader.get_str("MONITOR_DB_HOST", "")
+DB_PORT = EnvVarLoader.get_int("MONITOR_DB_PORT", 3306, min_value=1)
+DB_USER = EnvVarLoader.get_str("MONITOR_DB_USER", "root")
+DB_ACCESS = EnvVarLoader.get_str("MONITOR_DB_ACCESS", "")
+DB_NAME = EnvVarLoader.get_str("MONITOR_DB_NAME", "monitor")
+DB_MIN_CONN = EnvVarLoader.get_int("MONITOR_DB_MIN_CONN", 2, min_value=1)
+DB_MAX_CONN = EnvVarLoader.get_int("MONITOR_DB_MAX_CONN", 10, min_value=1)
 
 # ============================================================
 # 监控配置
 # ============================================================
 
 MONITOR_INTERVAL = EnvVarLoader.get_int(
-    "SYSOPS_MONITOR_INTERVAL",
+    "MONITOR_MONITOR_INTERVAL",
     60,
     min_value=10,
 )
 
-ALERT_ENABLED = EnvVarLoader.get_bool("SYSOPS_ALERT_ENABLED", False)
+ALERT_ENABLED = EnvVarLoader.get_bool("MONITOR_ALERT_ENABLED", False)
 
 ALERT_RETRY_COUNT = EnvVarLoader.get_int(
-    "SYSOPS_ALERT_RETRY_COUNT",
+    "MONITOR_ALERT_RETRY_COUNT",
     3,
     min_value=1,
 )
@@ -170,19 +170,19 @@ ALERT_RETRY_COUNT = EnvVarLoader.get_int(
 # ============================================================
 
 REQUEST_TIMEOUT_SECONDS = EnvVarLoader.get_float(
-    "SYSOPS_REQUEST_TIMEOUT_SECONDS",
+    "MONITOR_REQUEST_TIMEOUT_SECONDS",
     60.0,
     min_value=10.0,
 )
 
 API_CALL_TIMEOUT = EnvVarLoader.get_float(
-    "SYSOPS_API_CALL_TIMEOUT",
+    "MONITOR_API_CALL_TIMEOUT",
     30.0,
     min_value=5.0,
 )
 
 HEALTH_CHECK_TIMEOUT = EnvVarLoader.get_float(
-    "SYSOPS_HEALTH_CHECK_TIMEOUT",
+    "MONITOR_HEALTH_CHECK_TIMEOUT",
     10.0,
     min_value=1.0,
 )

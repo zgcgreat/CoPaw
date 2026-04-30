@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SysOps 运维工程简单入口。
+"""Monitor 运维工程简单入口。
 
 Usage:
     python main.py                  # 默认启动
@@ -19,7 +19,7 @@ if _src_dir.exists() and str(_src_dir) not in sys.path:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SysOps 运维服务启动入口",
+        description="Monitor 运维服务启动入口",
     )
     parser.add_argument(
         "--host",
@@ -40,7 +40,7 @@ def main():
     args = parser.parse_args()
 
     uvicorn.run(
-        "sysops.app._app:app",
+        "monitor.app._app:app",
         host=args.host,
         port=args.port,
         reload=args.reload,

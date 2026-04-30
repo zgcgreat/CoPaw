@@ -18,14 +18,14 @@ async def lifespan(
     fastapi_app: FastAPI,
 ):  # pylint: disable=redefined-outer-name,unused-argument
     """应用生命周期管理."""
-    logger.info("SysOps service starting up...")
-    logger.info(f"Environment: {os.environ.get('SYSOPS_ENV', 'prd')}")
+    logger.info("Monitor service starting up...")
+    logger.info(f"Environment: {os.environ.get('MONITOR_ENV', 'prd')}")
     yield
-    logger.info("SysOps service shutting down...")
+    logger.info("Monitor service shutting down...")
 
 
 app = FastAPI(
-    title="SysOps",
+    title="Monitor",
     description="系统运维管理服务",
     version=__version__,
     lifespan=lifespan,

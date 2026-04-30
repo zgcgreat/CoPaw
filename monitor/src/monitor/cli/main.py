@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 )
 @click.version_option(
     version="1.0.0",
-    prog_name="SysOps",
+    prog_name="Monitor",
 )
 @click.pass_context
 def cli(ctx: click.Context) -> None:
-    """SysOps 运维工程 CLI."""
+    """Monitor 运维工程 CLI."""
     ctx.ensure_object(dict)
 
 
@@ -34,12 +34,12 @@ def cli(ctx: click.Context) -> None:
 @click.option("--port", default=9090, type=int, help="服务监听端口")
 @click.option("--reload", is_flag=True, help="开发模式，自动重载")
 def app_cmd(host: str, port: int, reload: bool) -> None:
-    """启动 SysOps 服务."""
+    """启动 Monitor 服务."""
     import uvicorn
 
-    logger.info(f"Starting SysOps service on {host}:{port}")
+    logger.info(f"Starting Monitor service on {host}:{port}")
     uvicorn.run(
-        "sysops.app._app:app",
+        "monitor.app._app:app",
         host=host,
         port=port,
         reload=reload,

@@ -5,7 +5,7 @@ import time
 
 from .utils.my_logging import setup_logger
 
-LOG_LEVEL_ENV = "SYSOPS_LOG_LEVEL"
+LOG_LEVEL_ENV = "MONITOR_LOG_LEVEL"
 
 _bootstrap_err: Exception | None = None
 try:
@@ -23,7 +23,7 @@ _t0 = time.perf_counter()
 setup_logger(os.environ.get(LOG_LEVEL_ENV, "info"))
 if _bootstrap_err is not None:
     logging.getLogger(__name__).warning(
-        "sysops: failed to load persisted envs on init: %s",
+        "monitor: failed to load persisted envs on init: %s",
         _bootstrap_err,
     )
 logging.getLogger(__name__).debug(

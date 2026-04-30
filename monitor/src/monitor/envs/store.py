@@ -18,14 +18,14 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _BOOTSTRAP_WORKING_DIR = (
-    Path(os.environ.get("SYSOPS_WORKING_DIR", "~/.sysops"))
+    Path(os.environ.get("MONITOR_WORKING_DIR", "~/.monitor"))
     .expanduser()
     .resolve()
 )
 _BOOTSTRAP_SECRET_DIR = (
     Path(
         os.environ.get(
-            "SYSOPS_SECRET_DIR",
+            "MONITOR_SECRET_DIR",
             f"{_BOOTSTRAP_WORKING_DIR}.secret",
         ),
     )
@@ -89,8 +89,8 @@ def _migrate_legacy_envs_json(path: Path) -> None:
 
 _PROTECTED_BOOTSTRAP_KEYS = frozenset(
     {
-        "SYSOPS_WORKING_DIR",
-        "SYSOPS_SECRET_DIR",
+        "MONITOR_WORKING_DIR",
+        "MONITOR_SECRET_DIR",
     },
 )
 

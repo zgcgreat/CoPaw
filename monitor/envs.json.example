@@ -1,0 +1,15 @@
+{
+  "MONITOR_DB_HOST": "",
+  "MONITOR_DB_PORT": "3306",
+  "MONITOR_DB_USER": "root",
+  "MONITOR_DB_ACCESS": "",
+  "MONITOR_DB_NAME": "monitor",
+  "MONITOR_LOG_LEVEL": "info",
+  "MONITOR_ENV": "prd",
+  "MONITOR_OPENAPI_DOCS": "false",
+  "MONITOR_CORS_ORIGINS": "",
+  "MONITOR_PORT": "9090",
+  "MONITOR_HOST": "127.0.0.1",
+  "MONITOR_INTERVAL": "60",
+  "MONITOR_ALERT_ENABLED": "false"
+}
