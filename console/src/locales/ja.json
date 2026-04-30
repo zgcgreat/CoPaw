@@ -996,6 +996,9 @@
     "memorySummaryTitle": "長期記憶設定",
     "memorySummaryEnabled": "記憶まとめを起動",
     "memorySummaryEnabledTooltip": "コンテキスト圧縮時に自動的に記憶サマリーを生成・保存します",
+    "dreamCron": "ドリーム最適化",
+    "dreamCronTooltip": "長期記憶を定期的に最適化するCron式（空欄で無効化）、デフォルトは毎日23:00",
+    "dreamCronPlaceholder": "0 23 * * *",
     "forceMemorySearch": "強制記憶検索(beta)",
     "forceMemorySearchTooltip": "毎回の会話で記憶検索を強制実行します。各クエリで関連する記憶を取得し、CoPawがあなたをより理解できますが、トークン消費が増加します。注意：強制記憶検索を有効にすると KV キャッシュが無効になり、キャッシュヒット率が低下します。慎重に有効にしてください。",
     "forceMaxResults": "強制検索の最大結果数",
@@ -1347,5 +1350,99 @@
     "transcriptionInfoTitle": "文字起こしの仕組み",
     "transcriptionInfoDesc": "Whisper API 文字起こしは OpenAI 互換の /v1/audio/transcriptions エンドポイントを使用します。Whisper 対応エンドポイントを持つプロバイダー（例: OpenAI）の設定が必要です。上記で具体的なプロバイダーを選択して文字起こしを有効にしてください。",
     "transcriptionInfoDescLocal": "ローカル Whisper 文字起こしは、お使いのマシン上で直接 openai-whisper ライブラリを実行します。ffmpeg（音声デコード用）と openai-whisper Python パッケージの両方のインストールが必要です。API キーやネットワーク接続は不要です。インストール：uv pip install 'copaw[whisper]'。"
+  },
+  "dreamLogs": {
+    "title": "夢最適化記録",
+    "triggerNow": "今すぐ実行",
+    "triggerType": "トリガー方式",
+    "trigger": {
+      "cron": "定期実行",
+      "manual": "手動実行"
+    },
+    "status": "状態",
+    "statusValue": {
+      "success": "成功",
+      "failed": "失敗",
+      "rollback": "ロールバック済み"
+    },
+    "filesOptimized": "最適化ファイル",
+    "runTime": "実行時間",
+    "duration": "所要時間",
+    "modelUsed": "使用モデル",
+    "summary": "最適化概要",
+    "stats": {
+      "title": "夢最適化統計",
+      "totalExecutions": "総実行回数",
+      "successRate": "成功率",
+      "spaceSaved": "累計節約容量",
+      "filesChanged": "累計変更ファイル",
+      "avgDuration": "平均所要時間",
+      "lastOptimization": "前回最適化時間"
+    },
+    "tabRecords": "最適化記録",
+    "tabBackups": "バックアップファイル",
+    "backup": {
+      "title": "バックアップファイル一覧",
+      "filename": "バックアップファイル名",
+      "originalFile": "元ファイル",
+      "recordId": "記録ID",
+      "timestamp": "バックアップ時間",
+      "size": "ファイルサイズ",
+      "createdAt": "作成時間",
+      "totalFiles": "バックアップファイル総数",
+      "totalSize": "合計サイズ",
+      "deleteAll": "全バックアップ削除",
+      "deleteConfirm": "このバックアップファイルを削除しますか？",
+      "deleteAllConfirm": "全バックアップ削除確認",
+      "deleteAllMessage": "すべてのバックアップファイルを削除します。削除後は復元できません。続行しますか？",
+      "deleteSuccess": "削除成功",
+      "deleteFailed": "削除失敗",
+      "noFiles": "バックアップファイルなし",
+      "previewTitle": "ファイルプレビュー",
+      "previewFailed": "ファイル内容の取得に失敗"
+    },
+    "file": {
+      "filename": "ファイル名",
+      "sizeBefore": "最適化前",
+      "sizeAfter": "最適化後",
+      "sizeSaved": "節約",
+      "linesRemoved": "削除行数"
+    },
+    "diff": {
+      "title": "ファイル比較",
+      "before": "最適化前",
+      "after": "最適化後",
+      "noChanges": "変更なし"
+    },
+    "rollback": {
+      "confirm": "ロールバック確認？",
+      "confirmMessage": "選択したファイルをロールバックしますか？最適化前の内容に復元されます。",
+      "confirmAllMessage": "すべてのファイルをロールバックしますか？最適化前の内容に復元されます。",
+      "success": "ロールバック成功",
+      "failed": "ロールバック失敗",
+      "single": "このファイルをロールバック",
+      "all": "全ロールバック"
+    },
+    "viewDiff": "比較を見る",
+    "noRecords": "記録なし",
+    "firstRecord": "初回夢最適化実行後に記録が表示されます",
+    "tabCleanup": "ファイル整理",
+    "orphanFiles": {
+      "title": "一時ファイル一覧",
+      "workspaceDir": "ワークスペースディレクトリ",
+      "filePath": "ファイルパス",
+      "filename": "ファイル名",
+      "size": "ファイルサイズ",
+      "createdAt": "作成時間",
+      "modifiedAt": "更新時間",
+      "totalFiles": "ファイル総数",
+      "totalSize": "合計サイズ",
+      "deleteConfirm": "このファイルを削除しますか？",
+      "deleteSuccess": "削除成功",
+      "deleteFailed": "削除失敗",
+      "noFiles": "一時ファイルなし",
+      "previewTitle": "ファイルプレビュー",
+      "previewFailed": "ファイル内容の取得に失敗"
+    }
   }
 }

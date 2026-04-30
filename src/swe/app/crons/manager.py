@@ -8,6 +8,8 @@ import logging
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, TypeVar, Union
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -29,6 +31,7 @@ from .models import CronJobSpec, CronJobState, CronTaskView, JobsFile
 from .repo.base import BaseJobRepository
 
 HEARTBEAT_JOB_ID = "_heartbeat"
+DREAM_JOB_ID = "_dream"
 AUTO_PAUSE_UNREAD_THRESHOLD = 3
 AUTO_PAUSE_REASON = "auto_unread_threshold"
 MANUAL_PAUSE_REASON = "manual"
@@ -282,6 +285,10 @@ class CronManager:  # pylint: disable=too-many-public-methods
 
             # Reload heartbeat
             await self._update_heartbeat()
+
+            # Reload dream job
+            await self._update_dream()
+
             await self._refresh_definition_version_locked(jobs_file=jobs_file)
 
             logger.info(
@@ -325,6 +332,10 @@ class CronManager:  # pylint: disable=too-many-public-methods
 
             # Heartbeat: scheduled job when enabled in config
             await self._update_heartbeat()
+
+            # Dream-based memory optimization: scheduled from config
+            await self._update_dream()
+
             await self._refresh_definition_version_locked(jobs_file=jobs_file)
 
             self._started = True
@@ -566,6 +577,83 @@ class CronManager:  # pylint: disable=too-many-public-methods
                 "Heartbeat job scheduled for agent %s: every=%s",
                 self._agent_id,
                 hb.every,
+            )
+
+    async def _update_dream(self) -> None:
+        """Update dream-based memory optimization job based on config."""
+        if self._scheduler is None:
+            return
+
+        # Remove existing dream job if present
+        if self._scheduler.get_job(DREAM_JOB_ID):
+            self._scheduler.remove_job(DREAM_JOB_ID)
+            self._active_jobs.discard(DREAM_JOB_ID)
+
+        # Lazy import to avoid heavy config loading at module import time
+        from ...config.utils import get_dream_cron
+
+        # Get dream cron expression from agent config
+        dream_cron = get_dream_cron(
+            self._agent_id,
+            tenant_id=self._tenant_id,
+        )
+
+        if dream_cron:
+            try:
+                trigger = CronTrigger.from_crontab(
+                    dream_cron,
+                    timezone=self._scheduler.timezone,
+                )
+                self._scheduler.add_job(
+                    self._dream_callback,
+                    trigger=trigger,
+                    id=DREAM_JOB_ID,
+                    replace_existing=True,
+                )
+                self._active_jobs.add(DREAM_JOB_ID)
+                logger.info(
+                    "Dream job scheduled for agent %s: cron=%s, timezone=%s",
+                    self._agent_id,
+                    dream_cron,
+                    self._scheduler.timezone,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "Failed to schedule dream job for agent %s: error=%s",
+                    self._agent_id,
+                    repr(e),
+                )
+
+    async def reschedule_dream(self) -> None:
+        """Reschedule dream job based on current config."""
+        await self._update_dream()
+
+    async def _dream_callback(self) -> None:
+        """Run one dream-based memory optimization task."""
+        try:
+            # Bind tenant context for dream execution
+            workspace_dir = (
+                Path(self._runner.workspace_dir)
+                if self._runner.workspace_dir
+                else None
+            )
+            with bind_tenant_context(
+                tenant_id=self._tenant_id,
+                workspace_dir=workspace_dir,
+            ):
+                await self._runner.memory_manager.dream_memory(
+                    tenant_id=self._tenant_id,
+                    trigger="cron",
+                )
+            logger.debug("Dream task executed successfully")
+        except asyncio.CancelledError:
+            logger.info("Dream task was cancelled")
+            raise
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "Failed to execute dream task: %s",
+                repr(e),
+                exc_info=True,
             )
 
     # ----- read/state -----
@@ -2135,7 +2223,9 @@ class CronManager:  # pylint: disable=too-many-public-methods
                         "job_id=%s",
                         job.id,
                     )
-                await self._record_task_execution_success(job)
+                await asyncio.shield(
+                    self._record_task_execution_success(job),
+                )
                 logger.info(
                     "cron _execute_once: job_id=%s status=success",
                     job.id,

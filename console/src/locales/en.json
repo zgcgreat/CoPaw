@@ -59,7 +59,9 @@
     "instanceOverview": "Overview",
     "instanceInstances": "Instances",
     "instanceAllocations": "Allocations",
-    "instanceOperationLogs": "Operation Logs"
+    "instanceOperationLogs": "Operation Logs",
+    "harness": "Harness",
+    "continuousIteration": "Continuous Iteration"
   },
   "cases": {
     "title": "Cases Management",
@@ -1072,6 +1074,9 @@
     "memorySummaryTitle": "Long-term Memory Config",
     "memorySummaryEnabled": "Activate Memory Summary",
     "memorySummaryEnabledTooltip": "Automatically generate and save memory summaries during context compaction",
+    "dreamCron": "Dream Optimization",
+    "dreamCronTooltip": "Cron expression for periodically optimizing long-term memories (leave empty to disable), default runs daily at 23:00",
+    "dreamCronPlaceholder": "0 23 * * *",
     "forceMemorySearch": "Force Memory Search (beta)",
     "forceMemorySearchTooltip": "Force memory search to run on every conversation turn. Each query will retrieve relevant memories, helping CoPaw understand you better — but this increases token consumption. Note: enabling force memory search will break the KV cache, reducing cache hit rate. Use with caution.",
     "forceMaxResults": "Force Search Max Results",
@@ -1526,5 +1531,106 @@
     "filterByAction": "Filter by action",
     "filterByTargetType": "Filter by target type",
     "searchTargetId": "Search target ID"
+  },
+  "dreamLogs": {
+    "title": "Dream Optimization Records",
+    "triggerNow": "Trigger Now",
+    "triggerType": "Trigger Type",
+    "trigger": {
+      "cron": "Scheduled",
+      "manual": "Manual"
+    },
+    "status": "Status",
+    "statusValue": {
+      "success": "Success",
+      "failed": "Failed",
+      "rollback": "Rolled Back"
+    },
+    "filesOptimized": "Files Optimized",
+    "runTime": "Run Time",
+    "duration": "Duration",
+    "modelUsed": "Model Used",
+    "summary": "Summary",
+    "stats": {
+      "title": "Dream Optimization Statistics",
+      "totalExecutions": "Total Executions",
+      "successRate": "Success Rate",
+      "spaceSaved": "Space Saved",
+      "filesChanged": "Files Changed",
+      "avgDuration": "Avg Duration",
+      "lastOptimization": "Last Optimization"
+    },
+    "tabRecords": "Records",
+    "tabBackups": "Backups",
+    "backup": {
+      "title": "Backup Files List",
+      "filename": "Backup Filename",
+      "originalFile": "Original File",
+      "recordId": "Record ID",
+      "timestamp": "Backup Time",
+      "size": "File Size",
+      "createdAt": "Created At",
+      "totalFiles": "Total Backup Files",
+      "totalSize": "Total Size",
+      "deleteAll": "Delete All Backups",
+      "deleteConfirm": "Are you sure to delete this backup file?",
+      "deleteAllConfirm": "Confirm Delete All Backups",
+      "deleteAllMessage": "This will delete all backup files and cannot be undone. Are you sure?",
+      "deleteSuccess": "Deleted successfully",
+      "deleteFailed": "Delete failed",
+      "noFiles": "No backup files",
+      "previewTitle": "File Preview",
+      "previewFailed": "Failed to get file content"
+    },
+    "file": {
+      "filename": "Filename",
+      "sizeBefore": "Before",
+      "sizeAfter": "After",
+      "sizeSaved": "Saved",
+      "linesRemoved": "Lines Removed"
+    },
+    "diff": {
+      "title": "File Comparison",
+      "before": "Before Optimization",
+      "after": "After Optimization",
+      "noChanges": "No Changes"
+    },
+    "rollback": {
+      "confirm": "Confirm Rollback?",
+      "confirmMessage": "Are you sure you want to rollback selected files? This will restore content before optimization.",
+      "confirmAllMessage": "Are you sure you want to rollback all files? This will restore content before optimization.",
+      "success": "Rollback successful",
+      "failed": "Rollback failed",
+      "single": "Rollback this file",
+      "all": "Rollback all"
+    },
+    "viewDiff": "View Diff",
+    "noRecords": "No records yet",
+    "firstRecord": "Records will appear after first dream optimization",
+    "filter": {
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "status": "Status",
+      "trigger": "Trigger",
+      "clear": "Clear Filters"
+    },
+    "tabCleanup": "File Cleanup",
+    "orphanFiles": {
+      "title": "Orphan Files List",
+      "workspaceDir": "Workspace Directory",
+      "filePath": "File Path",
+      "filename": "Filename",
+      "size": "File Size",
+      "createdAt": "Created At",
+      "modifiedAt": "Modified At",
+      "totalFiles": "Total Files",
+      "totalSize": "Total Size",
+      "deleteConfirm": "Are you sure to delete this file?",
+      "deleteSuccess": "Deleted successfully",
+      "deleteFailed": "Delete failed",
+      "noFiles": "No orphan files",
+      "previewTitle": "File Preview",
+      "previewFailed": "Failed to get file content"
+    }
   }
 }

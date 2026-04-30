@@ -17,7 +17,8 @@
   patterns:
     - '^\s*swe\s+cron\s+create\b.*$'
     - '^\s*swe\s+cron\s+update\b.*$'
-  exclude_patterns: []
+  exclude_patterns:
+    - '^\s*swe\s+cron\s+(create|update)\s+(-h|--help)\s*$'
   description: '定时任务限制'
   remediation: '该操作将创建定时任务，在指定时间为你后台执行并通过招乎推送，是否确认'
 ## ── rm: file / directory removal ──────────────────────────────────────

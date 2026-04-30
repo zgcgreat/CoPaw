@@ -34,20 +34,19 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
-      // ==================== 代理配置 (Kun He) ====================
       proxy: {
-        // target 目录下的接口统一使用 /api/market 前缀代理到市场服务 (8090)
         "/api/market": {
           target: "http://127.0.0.1:8090",
           changeOrigin: true,
         },
-        // 其他接口代理到主后端 (8088)
         "/api": {
           target: "http://127.0.0.1:8088",
           changeOrigin: true,
         },
       },
-      // ==================== 代理配置结束 ====================
+    },
+    optimizeDeps: {
+      include: ["diff"],
     },
     // build: {
     //   // Output to CoPaw's console directory,
