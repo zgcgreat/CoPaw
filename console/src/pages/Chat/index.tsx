@@ -81,9 +81,55 @@ import type {
 } from "./messageMeta";
 
 const CHAT_ATTACHMENT_MAX_MB = 10;
+const CHAT_REQUEST_TIMEOUT_MS = 300_000;
 const TASK_RUNNING_POLL_MS = 30_000;
 const TASK_PAGE_POLL_MS = 30_000;
 const TASK_PENDING_POLL_MS = 30_000;
+
+function createTimedAbortSignal(
+  externalSignal?: AbortSignal,
+  timeoutMs: number = CHAT_REQUEST_TIMEOUT_MS,
+) {
+  const controller = new AbortController();
+
+  const abortWithReason = (reason?: unknown) => {
+    if (controller.signal.aborted) return;
+    controller.abort(
+      reason ?? new DOMException("The operation was aborted.", "AbortError"),
+    );
+  };
+
+  if (externalSignal?.aborted) {
+    abortWithReason(externalSignal.reason);
+  }
+
+  const handleExternalAbort = () => {
+    abortWithReason(externalSignal?.reason);
+  };
+
+  if (externalSignal && !externalSignal.aborted) {
+    externalSignal.addEventListener("abort", handleExternalAbort, {
+      once: true,
+    });
+  }
+
+  const timeoutId = window.setTimeout(() => {
+    const elapsedSeconds = Math.ceil(timeoutMs / 1000);
+    abortWithReason(
+      new Error(`⏰ 任务执行超时（${elapsedSeconds}s > ${elapsedSeconds}s），已自动终止。`),
+    );
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      window.clearTimeout(timeoutId);
+      if (externalSignal) {
+        externalSignal.removeEventListener("abort", handleExternalAbort);
+      }
+    },
+  };
+}
 
 interface SessionInfo {
   session_id?: string;
@@ -896,14 +942,37 @@ export default function ChatPage() {
         }
       }
 
-      const response = await fetch(getApiUrl("/console/chat"), {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody),
-        signal: data.signal,
-      });
+      const timeoutSignal = createTimedAbortSignal(data.signal);
+      try {
+        const response = await fetch(getApiUrl("/console/chat"), {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+          signal: timeoutSignal.signal,
+        });
 
-      return response;
+        return response;
+      } catch (error) {
+        // 如果是超时导致的abort,调用cancel API终止后端任务
+        if (error instanceof DOMException && error.name === "AbortError") {
+          const backendChatId = resolveRequestChatId(
+            {
+              session_id: data.session_id,
+              logical_session_id: data.logical_session_id,
+              chat_id: data.chat_id,
+            },
+            requestBody.session_id,
+          );
+          if (backendChatId) {
+            chatApi.stopChat(backendChatId).catch((err) => {
+              console.error("Failed to stop chat after timeout:", err);
+            });
+          }
+        }
+        throw error;
+      } finally {
+        timeoutSignal.cleanup();
+      }
     },
     [resolveLogicalRequestSessionId, resolveRequestChatId, selectedAgent],
   );
@@ -1158,20 +1227,25 @@ export default function ChatPage() {
             logicalSessionId,
           );
 
-          return fetch(getApiUrl("/console/chat"), {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              reconnect: true,
-              session_id: reconnectSessionId,
-              // ==================== userId 统一整改 (Kun He) ====================
-              // 使用 getUserId()/getChannel() 获取
-              user_id: getUserId(),
-              channel: getChannel(),
-              // ==================== userId 统一整改结束 ====================
-            }),
-            signal: data.signal,
-          });
+          const timeoutSignal = createTimedAbortSignal(data.signal);
+          try {
+            return await fetch(getApiUrl("/console/chat"), {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                reconnect: true,
+                session_id: reconnectSessionId,
+                // ==================== userId 统一整改 (Kun He) ====================
+                // 使用 getUserId()/getChannel() 获取
+                user_id: getUserId(),
+                channel: getChannel(),
+                // ==================== userId 统一整改结束 ====================
+              }),
+              signal: timeoutSignal.signal,
+            });
+          } finally {
+            timeoutSignal.cleanup();
+          }
         },
       },
       // ==================== 自定义工具渲染器 ====================

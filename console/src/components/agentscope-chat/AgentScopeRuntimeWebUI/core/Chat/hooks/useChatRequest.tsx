@@ -22,6 +22,19 @@ interface UseChatRequestOptions {
   onFinish: (owner: ChatRequestOwner) => void;
 }
 
+function isAbortLikeError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+
+function getUserVisibleErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : typeof error === "string"
+      ? error
+      : JSON.stringify(error);
+}
+
 /**
  * 处理 API 请求和流式响应的 Hook
  */
@@ -43,6 +56,54 @@ export default function useChatRequest(options: UseChatRequestOptions) {
       currentQARef.current.response?.liveHeaderTimestamp
     );
   }, [currentQARef]);
+
+  const failActiveResponse = useCallback(
+    (owner: ChatRequestOwner, error: unknown) => {
+      const responseHeaderTimestamp = getResponseHeaderTimestamp();
+      const responseData = currentQARef.current.response?.cards?.[0]?.data as
+        | {
+            id?: string;
+            status?: AgentScopeRuntimeRunStatus;
+            created_at?: number;
+          }
+        | undefined;
+      const responseBuilder = new AgentScopeRuntimeResponseBuilder({
+        id: responseData?.id || "",
+        status: responseData?.status || AgentScopeRuntimeRunStatus.Created,
+        created_at: responseData?.created_at || 0,
+      });
+
+      if (responseData) {
+        responseBuilder.handle(responseData as never);
+      }
+
+      const errorMessage = getUserVisibleErrorMessage(error);
+
+      const failed = responseBuilder.handle({
+        object: "message",
+        type: AgentScopeRuntimeMessageType.ERROR,
+        content: [],
+        id: "error",
+        role: "assistant",
+        status: AgentScopeRuntimeRunStatus.Failed,
+        code: "stream_error",
+        message: errorMessage,
+      });
+
+      if (currentQARef.current.response) {
+        currentQARef.current.response.cards = [
+          {
+            code: "AgentScopeRuntimeResponseCard",
+            data: withResponseHeaderMeta(failed, responseHeaderTimestamp),
+          },
+        ];
+        updateMessage(currentQARef.current.response);
+      }
+
+      onFinish(owner);
+    },
+    [currentQARef, getResponseHeaderTimestamp, onFinish, updateMessage],
+  );
 
   const mockRequest = useCallback(async (mockdata) => {
     const responseHeaderTimestamp = getResponseHeaderTimestamp();
@@ -264,9 +325,27 @@ export default function useChatRequest(options: UseChatRequestOptions) {
         }
       } catch (error) {
         console.error(error);
+        if (!isOwnerActive()) {
+          return;
+        }
+        if (
+          currentQARef.current.response?.msgStatus === "interrupted" ||
+          isAbortLikeError(error)
+        ) {
+          onFinish(owner);
+          return;
+        }
+        failActiveResponse(owner, error);
       }
     },
-    [getCurrentSessionId, currentQARef, getResponseHeaderTimestamp, updateMessage, onFinish],
+    [
+      currentQARef,
+      failActiveResponse,
+      getCurrentSessionId,
+      getResponseHeaderTimestamp,
+      onFinish,
+      updateMessage,
+    ],
   );
 
   const request = useCallback(
@@ -310,13 +389,21 @@ export default function useChatRequest(options: UseChatRequestOptions) {
               }),
               signal: abortSignal,
             });
-      } catch (error) {}
+      } catch (error) {
+        if (
+          !isAbortLikeError(error) &&
+          isActiveChatRequestOwner(currentQARef.current.activeRequestOwner, requestOwner)
+        ) {
+          failActiveResponse(requestOwner, error);
+        }
+        return;
+      }
 
       if (response && response.body) {
         await processSSEResponse(response, requestOwner);
       }
     },
-    [getCurrentSessionId, currentQARef, processSSEResponse],
+    [currentQARef, failActiveResponse, getCurrentSessionId, processSSEResponse],
   );
 
   const reconnect = useCallback(
@@ -338,13 +425,21 @@ export default function useChatRequest(options: UseChatRequestOptions) {
           logical_session_id: requestOwner.logicalSessionId,
           chat_id: requestOwner.chatId,
         });
-      } catch (error) {}
+      } catch (error) {
+        if (
+          !isAbortLikeError(error) &&
+          isActiveChatRequestOwner(currentQARef.current.activeRequestOwner, requestOwner)
+        ) {
+          failActiveResponse(requestOwner, error);
+        }
+        return;
+      }
 
       if (response && response.body) {
         await processSSEResponse(response, requestOwner);
       }
     },
-    [currentQARef, processSSEResponse],
+    [currentQARef, failActiveResponse, processSSEResponse],
   );
 
   const cancelActiveRequest = useCallback(async () => {
