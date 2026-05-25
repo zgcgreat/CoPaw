@@ -8,6 +8,8 @@ import ConsolePollService from "../../components/ConsolePollService";
 import { ChunkErrorBoundary } from "../../components/ChunkErrorBoundary";
 import { lazyImportWithRetry } from "../../utils/lazyWithRetry";
 import { usePlugins } from "../../plugins/PluginContext";
+import { useCodingMode } from "../../stores/codingModeStore";
+import { useSyncCodingMode } from "../../stores/useSyncCodingMode";
 import styles from "../index.module.less";
 
 // Chat is eagerly loaded (default landing page)
@@ -48,6 +50,24 @@ const PluginManagerPage = lazyImportWithRetry(
 
 const { Content } = Layout;
 
+// Route "/" lands here. Waits for useSyncCodingMode to populate the store
+// from the backend before deciding where to send the user — otherwise we
+// would flash /chat first and the toggle button would desync with the
+// rendered page.
+function DefaultRedirect() {
+  const { t } = useTranslation();
+  const { codingMode, initialized } = useCodingMode();
+  if (!initialized) {
+    return (
+      <Spin
+        tip={t("common.loading")}
+        style={{ display: "block", margin: "20vh auto" }}
+      />
+    );
+  }
+  return <Navigate to={codingMode ? "/coding" : "/chat"} replace />;
+}
+
 const pathToKey: Record<string, string> = {
   "/chat": "chat",
   "/coding": "chat",
@@ -82,6 +102,10 @@ export default function MainLayout() {
   const currentPath = location.pathname;
   const { pluginRoutes } = usePlugins();
 
+  // Backend is the source of truth for Coding Mode state — refill the
+  // in-memory store every time the selected agent changes.
+  useSyncCodingMode();
+
   // Resolve selected key: check static routes first, then plugin routes
   let selectedKey = pathToKey[currentPath] || "";
   if (!selectedKey) {
@@ -111,7 +135,7 @@ export default function MainLayout() {
                 }
               >
                 <Routes>
-                  <Route path="/" element={<Navigate to="/chat" replace />} />
+                  <Route path="/" element={<DefaultRedirect />} />
                   <Route path="/chat/*" element={<Chat />} />
                   <Route path="/coding" element={<CodingPage />} />
                   <Route path="/channels" element={<ChannelsPage />} />
